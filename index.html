@@ -1213,7 +1213,7 @@ async function showStorage(){
             : n >= 1048576 ? (n / 1048576).toFixed(1) + ' MB'
             : Math.max(1, Math.round(n / 1024)) + ' KB';
   const where = u.backend === 'idb'
-    ? 'IndexedDB \u2014 limited by free disk space, not the old 5 MB cap.'
+    ? 'IndexedDB'
     : u.backend === 'local'
       ? 'localStorage \u2014 IndexedDB was unavailable, so the 5 MB limit still applies.'
       : 'Memory only \u2014 nothing is being saved. Check your browser\u2019s privacy settings.';
