@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Document</title>
+    </head>
+    <body style="margin:0px; padding:0px; font-family: 'Trebuchet MS', sans-serif;">
+
+        <div id="page" style="width:100%; height:100dvh;"></div>
+
+        <script>
+            const page = document.getElementById("page");
+            let master = "";
+
+            // COMPONENTS_START
+            let components = {
+          "Home": {
+                    "html": "<div id='home-wrapper' style='position:relative; width:100%; height:100dvh; overflow:hidden; background:#f5f5f7;'>\n    <button id='menu-toggle-btn' style='position:absolute; top:16px; left:16px; z-index:1000; width:44px; height:44px; border:none; border-radius:8px; background:#ffffff; box-shadow:0 2px 6px rgba(0,0,0,0.15); cursor:pointer; font-size:20px; line-height:44px; text-align:center; padding:0;'>&#9776;</button>\n    <div id='menu-overlay' style='position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.3); opacity:0; pointer-events:none; transition:opacity 0.25s ease; z-index:998;'></div>\n    <div id='side-menu' style='position:fixed; top:0; left:-280px; width:280px; height:100%; background:#ffffff; box-shadow:2px 0 10px rgba(0,0,0,0.2); transition:left 0.25s ease; z-index:999; padding:70px 16px 16px 16px; box-sizing:border-box; display:flex; flex-direction:column;'>\n        <input id='comp-search' placeholder='Search components...' style='width:100%; box-sizing:border-box; padding:10px 12px; margin-bottom:14px; border:1px solid #ddd; border-radius:6px; font-size:14px; font-family:inherit; outline:none; flex-shrink:0;'/>\n        <div id='comp-list' style='flex:1; min-height:0; overflow-y:auto;'></div>\n    </div>\n    <div style='display:flex; align-items:center; justify-content:center; height:100%; text-align:center; padding:20px; box-sizing:border-box;'>\n        <div>\n            <h1 style='font-size:32px; color:#333; margin:0 0 8px 0;'>Welcome</h1>\n            <p style='color:#777; font-size:16px; margin:0;'>Click the menu icon to browse components</p>\n        </div>\n    </div>\n</div>",
+                    "js": "var toggleBtn=document.getElementById('menu-toggle-btn');\nvar sideMenu=document.getElementById('side-menu');\nvar overlay=document.getElementById('menu-overlay');\nvar listEl=document.getElementById('comp-list');\nvar searchInput=document.getElementById('comp-search');\nvar menuOpen=false;\n\nif (!window.__contextListenersBound) {\n    window.__contextListenersBound = true;\n    var hideContext = function () {\n        var m = document.getElementById(\"context\");\n        if (m) m.style.display = \"none\";\n    };\n    document.addEventListener(\"click\", hideContext);\n    document.addEventListener(\"contextmenu\", hideContext);\n    document.addEventListener(\"scroll\", hideContext, true);\n    document.addEventListener(\"keydown\", function (e) { if (e.key === \"Escape\") hideContext(); });\n}\n\nwindow.customContext = function(el, obj) {\n    let menu = document.getElementById(\"context\");\n    if (!menu) {\n        menu = page.appendChild(document.createElement(\"div\"));\n        menu.id = \"context\";\n        menu.style.cssText = \"position:fixed; top:0; left:0; z-index:2000; display:none; min-width:160px; padding:6px; font-size:13px; color:#333; background:#fff; border:1px solid rgba(35,40,48,.08); border-radius:10px; box-shadow:0 8px 28px rgba(35,40,48,.18); user-select:none;\";\n        menu.oncontextmenu = (e) => e.preventDefault();\n    }\n    el.oncontextmenu = (e) => {\n        e.preventDefault();\n        e.stopPropagation();\n        menu.innerHTML = \"\";\n        Object.keys(obj).forEach((label) => {\n            const item = document.createElement(\"div\");\n            item.textContent = label;\n            item.style.cssText = \"height:32px; padding:0 12px; display:flex; align-items:center; border-radius:6px; cursor:pointer;\";\n            item.onmouseenter = () => item.style.background = \"#f0f0f2\";\n            item.onmouseleave = () => item.style.background = \"\";\n            item.onclick = () => { menu.style.display = \"none\"; obj[label](); };\n            menu.appendChild(item);\n        });\n        menu.style.display = \"block\";\n        menu.style.left = `${Math.min(e.clientX, window.innerWidth - menu.offsetWidth - 8)}px`;\n        menu.style.top = `${Math.min(e.clientY, window.innerHeight - menu.offsetHeight - 8)}px`;\n    };\n}\n\nwindow.customModal = function(title, body, actions) {\n    const overlay = document.body.appendChild(document.createElement(\"div\"));\n    overlay.style.cssText = \"position:fixed; inset:0; z-index:3000; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,0.45);\";\n    const panel = overlay.appendChild(document.createElement(\"div\"));\n    panel.style.cssText = \"width:92vw; height:90dvh; max-width:1100px; display:flex; flex-direction:column; background:#fff; border-radius:12px; box-shadow:0 20px 60px rgba(35,40,48,0.3); overflow:hidden; font-family:inherit; font-size:14px; color:#333;\";\n    const close = () => { overlay.remove(); document.removeEventListener(\"keydown\", onKey); };\n    const onKey = (e) => { if (e.key === \"Escape\") close(); };\n    document.addEventListener(\"keydown\", onKey);\n\n    const head = panel.appendChild(document.createElement(\"div\"));\n    head.style.cssText = \"display:flex; align-items:center; justify-content:space-between; padding:14px 18px; border-bottom:1px solid #eee; flex-shrink:0;\";\n    const heading = head.appendChild(document.createElement(\"h2\"));\n    heading.textContent = title;\n    heading.style.cssText = \"margin:0; font-size:16px; font-weight:600;\";\n    const x = head.appendChild(document.createElement(\"button\"));\n    x.innerHTML = \"&times;\";\n    x.style.cssText = \"border:none; background:none; font-size:24px; line-height:1; color:#888; cursor:pointer; padding:0 4px;\";\n    x.onclick = close;\n\n    const content = panel.appendChild(document.createElement(\"div\"));\n    content.style.cssText = \"flex:1; min-height:0; padding:16px 18px; display:flex; flex-direction:column; overflow:auto;\";\n    if (typeof body === \"string\") content.innerHTML = body; else content.appendChild(body);\n\n    const labels = Object.keys(actions || {});\n    if (labels.length) {\n        const foot = panel.appendChild(document.createElement(\"div\"));\n        foot.style.cssText = \"display:flex; justify-content:flex-end; gap:8px; padding:12px 18px; border-top:1px solid #eee; flex-shrink:0;\";\n        labels.forEach((label, i) => {\n            const b = foot.appendChild(document.createElement(\"button\"));\n            const primary = i === labels.length - 1;\n            b.textContent = label;\n            b.style.cssText = `padding:9px 20px; border:none; border-radius:6px; cursor:pointer; font-family:inherit; font-size:14px; background:${primary ? \"#333\" : \"#f0f0f2\"}; color:${primary ? \"#fff\" : \"#333\"};`;\n            b.onclick = () => actions[label](close, content);\n        });\n    }\n    return content;\n}\n\nfunction setMenu(open){\n    menuOpen=open;\n    sideMenu.style.left=open?'0px':'-280px';\n    overlay.style.opacity=open?'1':'0';\n    overlay.style.pointerEvents=open?'auto':'none';\n}\n\ntoggleBtn.addEventListener('click',function(){\n    setMenu(!menuOpen);\n});\n\noverlay.addEventListener('click',function(){\n    setMenu(false);\n});\n\nfunction openEditor(name){\n    var draft=JSON.parse(JSON.stringify(components[name]));\n    var mode='html';\n    var wrap=document.createElement('div');\n    wrap.style.cssText='display:flex; flex-direction:column; height:100%; min-height:0; gap:10px;';\n    var toggle=document.createElement('div');\n    toggle.style.cssText='display:flex; gap:6px; flex-shrink:0;';\n    var ta=document.createElement('textarea');\n    ta.spellcheck=false;\n    ta.style.cssText='flex:1; min-height:0; width:100%; box-sizing:border-box; padding:12px; border:1px solid #ddd; border-radius:8px; font-family:monospace; font-size:13px; line-height:1.5; resize:none; outline:none; white-space:pre; overflow:auto;';\n    textAreaTabFunctionality(ta);\n    var tabs={};\n    Object.keys(components[name]).forEach(function(m){\n        var b=document.createElement('button');\n        b.textContent=m.toUpperCase();\n        b.style.cssText='padding:8px 20px; border:none; border-radius:6px; cursor:pointer; font-family:inherit; font-size:13px;';\n        b.onclick=function(){\n            draft[mode]=ta.value;\n            mode=m;\n            sync();\n        };\n        tabs[m]=b;\n        toggle.appendChild(b);\n    });\n    function sync(){\n        ta.value=draft[mode];\n        Object.keys(components[name]).forEach(function(m){\n            var on=m===mode;\n            tabs[m].style.background=on?'#333':'#f0f0f2';\n            tabs[m].style.color=on?'#fff':'#333';\n        });\n    }\n    sync();\n    wrap.appendChild(toggle);\n    wrap.appendChild(ta);\n    customModal('Edit: '+name,wrap,{\n        'Cancel':function(close){\n            close();\n        },\n        'Save':function(close){\n            draft[mode]=ta.value;\n            components[name] = draft;\n            close();\n        }\n    });\n}\n\nfunction renderList(filter){\n    filter=(filter||'').toLowerCase();\n    listEl.innerHTML='';\n    var names=Object.keys(components).filter(function(n){\n        return n.toLowerCase().indexOf(filter)!==-1;\n    });\n    if(!names.length){\n        var e=document.createElement('p');\n        e.textContent='No components found.';\n        e.style.cssText='color:#999; font-size:13px;';\n        listEl.appendChild(e);\n        return;\n    }\n    names.forEach(function(name){\n        var comp=components[name];\n        var btn=document.createElement('button');\n        if(comp.icon){\n            var ic=document.createElement('span');\n            ic.innerHTML=comp.icon;\n            ic.style.marginRight='10px';\n            btn.appendChild(ic);\n        }\n        btn.appendChild(document.createTextNode(name));\n        btn.style.cssText='display:block; width:100%; text-align:left; padding:12px 14px; margin-bottom:8px; border:none; border-radius:6px; background:#f0f0f2; color:#333; font-size:15px; cursor:pointer; font-family:inherit;';\n        btn.onmouseover=function(){\n            btn.style.background='#e4e4e8';\n        };\n        btn.onmouseout=function(){\n            btn.style.background='#f0f0f2';\n        };\n        btn.onclick=function(){\n            setMenu(false);\n            var pageEl=document.getElementById('page');\n            pageEl.innerHTML='';\n            addComponent(name,pageEl);\n        };\n        var acts={\n            'Edit':function(){\n                openEditor(name);\n            },\n            'Rename':function(){\n                var nn=prompt('Rename \"'+name+'\" to:',name);\n                if(!nn||nn===name||components[nn])return;\n                components[nn]=components[name];\n                delete components[name];\n                renderList(searchInput.value);\n            },\n            'Delete':function(){\n                if(!confirm('Delete \"'+name+'\"?'))return;\n                delete components[name];\n                renderList(searchInput.value);\n            }\n        };\n        if(name==='Home'){\n            delete acts['Rename'];\n            delete acts['Delete'];\n        }\n        customContext(btn,acts);\n        listEl.appendChild(btn);\n    });\n}\n\nsearchInput.addEventListener('input',function(){\n    renderList(searchInput.value);\n});\n\nrenderList('');",
+                    "category": "Test",
+                    "icon": "&#127968;"
+          },
+          "Example Tool": {
+                    "html": "<div style='padding:24px; font-family:inherit;'>\n    <h1 style='color:#333;'>Example Tool</h1>\n    <p style='color:#666;'>This is a placeholder tool component to demonstrate the menu. Replace it with your real tool.</p>\n    <button id='back-home-btn' style='padding:10px 18px; border:none; border-radius:6px; background:#333; color:#fff; font-size:14px; cursor:pointer;'>Back to Home</button>\n</div>",
+                    "js": "document.getElementById('back-home-btn').addEventListener('click',function(){\n    var pageEl=document.getElementById('page');\n    pageEl.innerHTML='';\n    addComponent('Home',pageEl);\n});",
+                    "category": "tool",
+                    "icon": "&#128295;"
+          },
+          "Export": {
+                    "html": "<div style='padding:24px; font-family:inherit;'>\n    <h1 style='color:#333;'>Export</h1>\n    <p style='color:#666;'>Copy a standalone version of this page to your clipboard with every current change baked in &mdash; edits, renames, additions, and deletions to any component.</p>\n    <button id='export-copy-btn' style='padding:10px 18px; border:none; border-radius:6px; background:#333; color:#fff; font-size:14px; cursor:pointer; margin-right:8px;'>Copy to Clipboard</button>\n    <button id='back-home-btn' style='padding:10px 18px; border:none; border-radius:6px; background:#f0f0f2; color:#333; font-size:14px; cursor:pointer;'>Back to Home</button>\n</div>",
+                    "js": "const pageBackup = page.innerHTML;\npage.innerHTML = \"\";\nlet html='<!DOCTYPE html>\\n'+document.documentElement.outerHTML;\npage.innerHTML = pageBackup;\n\ndocument.getElementById('export-copy-btn').addEventListener('click',function(){\n    var btn=this;\n    var block='// COMPO' + 'NENTS_START\\n            let components = '+JSON.stringify(components,null,16)+'\\n            // COMPON' + 'ENTS_END';\n    html=html.replace(/\\/\\/ COMPONENTS_START[\\s\\S]*?\\/\\/ COMPONENTS_END/,function(){return block;});\n    navigator.clipboard.writeText(html).then(function(){\n        var orig=btn.textContent;\n        btn.textContent='Copied!';\n        setTimeout(function(){\n            btn.textContent = orig;\n        },1500);\n    }).catch(function(){\n        alert('Could not copy to clipboard.');\n    });\n});\ndocument.getElementById('back-home-btn').addEventListener('click',function(){\n    var pageEl=document.getElementById('page');\n    pageEl.innerHTML='';\n    addComponent('Home',pageEl);\n});",
+                    "category": "tool",
+                    "icon": "&#128190;"
+          }
+}
+            // COMPONENTS_END
+
+            function addComponent(compName, target) {
+                target.innerHTML += components[compName].html;
+                let js = new Function(components[compName].js);
+                js();
+            }
+
+            addComponent("Home", page);
+
+
+            async function saveComponents(password) {
+                const salt = crypto.getRandomValues(new Uint8Array(16));
+                const iv = crypto.getRandomValues(new Uint8Array(12));
+                const key = await crypto.subtle.deriveKey(
+                    { "name" : "PBKDF2", "salt" : salt, "iterations" : 600000, "hash" : "SHA-256" },
+                    await crypto.subtle.importKey("raw", new TextEncoder().encode(password), "PBKDF2", false, ["deriveKey"]),
+                    { "name" : "AES-GCM", "length" : 256 }, false, ["encrypt"]
+                );
+                const data = await crypto.subtle.encrypt({ "name" : "AES-GCM", "iv" : iv }, key, new TextEncoder().encode(JSON.stringify(components)));
+                const db = await new Promise((done, fail) => {
+                    const req = indexedDB.open("toolkit", 1);
+                    req.onupgradeneeded = () => req.result.createObjectStore("components");
+                    req.onsuccess = () => done(req.result);
+                    req.onerror = () => fail(req.error);
+                });
+                await new Promise((done, fail) => {
+                    const req = db.transaction("components", "readwrite").objectStore("components").put({ "salt" : salt, "iv" : iv, "data" : data }, "components");
+                    req.onsuccess = () => done();
+                    req.onerror = () => fail(req.error);
+                });
+                db.close();
+            }
+            
+            async function loadComponents(password) {
+                const db = await new Promise((done, fail) => {
+                    const req = indexedDB.open("toolkit", 1);
+                    req.onupgradeneeded = () => req.result.createObjectStore("components");
+                    req.onsuccess = () => done(req.result);
+                    req.onerror = () => fail(req.error);
+                });
+                const saved = await new Promise((done, fail) => {
+                    const req = db.transaction("components", "readonly").objectStore("components").get("components");
+                    req.onsuccess = () => done(req.result);
+                    req.onerror = () => fail(req.error);
+                });
+                db.close();
+                if (!saved) return false;
+                if (!password) return true; // No password just asks whether a vault exists yet.
+                const key = await crypto.subtle.deriveKey(
+                    { "name" : "PBKDF2", "salt" : saved["salt"], "iterations" : 600000, "hash" : "SHA-256" },
+                    await crypto.subtle.importKey("raw", new TextEncoder().encode(password), "PBKDF2", false, ["deriveKey"]),
+                    { "name" : "AES-GCM", "length" : 256 }, false, ["decrypt"]
+                );
+                components = JSON.parse(new TextDecoder().decode(await crypto.subtle.decrypt({ "name" : "AES-GCM", "iv" : saved["iv"] }, key, saved["data"]).catch(() => { throw new Error("Wrong master password"); })));
+                return true;
+            }
+            
+            async function clearComponents() {
+                await new Promise((done, fail) => {
+                    const req = indexedDB.deleteDatabase("toolkit");
+                    req.onsuccess = () => done();
+                    req.onblocked = () => done();
+                    req.onerror = () => fail(req.error);
+                });
+                components = { "Home" : components["Home"] };
+                master = "";
+            }
+
+            function textAreaTabFunctionality(txtArea) {
+			    txtArea.addEventListener('keydown', function(e) {
+			        if (e.key === 'Tab') {
+			            e.preventDefault();
+			            const start = this.selectionStart;
+			            const end = this.selectionEnd;
+			            const spaces = '    ';
+			            this.value = this.value.substring(0, start) + spaces + this.value.substring(end);
+			            this.selectionStart = this.selectionEnd = start + spaces.length;
+			        }
+			    });
+			}
+        </script>
+    
+</body></html>
