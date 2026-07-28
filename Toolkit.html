@@ -10,7 +10,16 @@
 </head>
 <body style="padding:0px; margin:0px; font-family:Verdana, sans-serif; -webkit-font-smoothing:antialiased; background-color:rgba(241,242,244,1); color:rgba(35,40,48,1);">
 
-    <div id="page" style="height:100dvh;"></div>
+    <div id="page" style="height:100dvh; box-sizing:border-box; padding:24px; display:flex; align-items:center; justify-content:center; background-color:rgba(18,20,25,1); color:rgba(241,242,244,1);">
+        <div style="width:100%; max-width:300px; display:flex; flex-direction:column; gap:10px;">
+            <div style="font-size:22px; font-weight:700; letter-spacing:-0.4px;">Toolkit</div>
+            <div id="hint" style="margin-bottom:6px; font-size:13px; line-height:1.5; opacity:0.55;"></div>
+            <input id="pass" type="password" placeholder="Master password" style="width:100%; height:44px; box-sizing:border-box; padding:0 14px; font-family:inherit; font-size:15px; color:inherit; background-color:rgba(255,255,255,0.06); border:none; border-radius:10px; outline:none;">
+            <input id="verify" type="password" placeholder="Confirm password" style="width:100%; height:44px; box-sizing:border-box; padding:0 14px; display:none; font-family:inherit; font-size:15px; color:inherit; background-color:rgba(255,255,255,0.06); border:none; border-radius:10px; outline:none;">
+            <div id="error" style="min-height:16px; font-size:12px; color:rgba(235,105,110,1);"></div>
+            <div id="enter" style="height:44px; display:flex; align-items:center; justify-content:center; font-size:15px; font-weight:700; background-color:rgba(88,132,255,1); border-radius:10px; cursor:pointer; user-select:none; -webkit-user-select:none; -webkit-tap-highlight-color:rgba(0,0,0,0);"></div>
+        </div>
+    </div>
 
     <script>
         const page = document.getElementById("page");
@@ -20,6 +29,8 @@
             "content-bg" : "rgba(227,229,233,1)",
             "text" : "rgba(35,40,48,1)"
         };
+
+        let master = "";
 
         let tools = {
             "Security" : {
@@ -62,7 +73,6 @@
 
         let cache = { "collapsed" : {} };
 
-        // Salt and IV are random per save. Wrong password fails the GCM auth tag and throws.
         async function saveCache(password) {
             const salt = crypto.getRandomValues(new Uint8Array(16));
             const iv = crypto.getRandomValues(new Uint8Array(12));
@@ -101,6 +111,7 @@
             });
             db.close();
             if (!saved) return false;
+            if (!password) return true; // No password just asks whether a vault exists yet.
 
             const key = await crypto.subtle.deriveKey(
                 { "name" : "PBKDF2", "salt" : saved["salt"], "iterations" : 600000, "hash" : "SHA-256" },
@@ -109,6 +120,55 @@
             );
             cache = JSON.parse(new TextDecoder().decode(await crypto.subtle.decrypt({ "name" : "AES-GCM", "iv" : saved["iv"] }, key, saved["data"]).catch(() => { throw new Error("Wrong master password"); })));
             return true;
+        }
+
+        async function clearCache() {
+            await new Promise((done, fail) => {
+                const req = indexedDB.deleteDatabase("toolkit");
+                req.onsuccess = () => done();
+                req.onblocked = () => done();
+                req.onerror = () => fail(req.error);
+            });
+            cache = { "collapsed" : {} };
+            master = "";
+        }
+
+        async function lockScreen() {
+            const setup = !(await loadCache(""));
+            const pass = document.getElementById("pass");
+            const verify = document.getElementById("verify");
+            const error = document.getElementById("error");
+            const enter = document.getElementById("enter");
+
+            document.getElementById("hint").textContent = setup ? "Create a master password. Everything saved is encrypted with it and cannot be recovered." : "Enter your master password to unlock.";
+            verify.style.display = setup ? "block" : "none";
+            enter.textContent = setup ? "Create" : "Unlock";
+            pass.focus();
+
+            const submit = async () => {
+                if (setup && pass.value.length < 8) return error.textContent = "Use at least 8 characters.";
+                if (setup && pass.value !== verify.value) return error.textContent = "Passwords do not match.";
+                if (!pass.value) return error.textContent = "Enter your master password.";
+
+                error.textContent = "";
+                try {
+                    if (setup) await saveCache(pass.value); else await loadCache(pass.value);
+                    master = pass.value;
+                    page.setAttribute("style", "height:100dvh;");
+                    showList(tools, "Toolkit", {
+                        "Rename Tool" : `const next = (prompt("Rename tool", el.dataset.tool) || "").trim(); if (next && next !== el.dataset.tool) { tools[el.dataset.category] = Object.fromEntries(Object.entries(tools[el.dataset.category]).map(([key, tool]) => [key === el.dataset.tool ? next : key, tool])); showList(tools, context); }`,
+                        "Edit Tool" : `console.log("Edit", el.dataset.category, el.dataset.tool, tools[el.dataset.category][el.dataset.tool]);`,
+                        "Delete Tool" : `if (confirm("Delete " + el.dataset.tool + "?")) { delete tools[el.dataset.category][el.dataset.tool]; showList(tools, context); }`
+                    });
+                } catch (e) {
+                    error.textContent = "Wrong master password.";
+                    pass.value = "";
+                    pass.focus();
+                }
+            };
+
+            enter.onclick = submit;
+            [pass, verify].forEach((el) => el.onkeydown = (e) => { if (e.key === "Enter") submit(); });
         }
 
         function customContext(el, obj) {
@@ -140,12 +200,12 @@
             };
         }
 
-        function showList(obj, context) {
+        function showList(obj, title, context) {
             page.innerHTML = `
                 <div style="width:100%; height:100%; box-sizing:border-box; display:flex; flex-direction:column; background-color:${theme['bg']};">
                     <div id="header" style="width:100%; box-sizing:border-box; padding:22px 20px 18px 20px; display:flex; flex-direction:column; gap:16px; background-color:${theme['bg']}; border-bottom:1px solid rgba(35,40,48,0.08); box-shadow:0 4px 14px rgba(35,40,48,0.05); z-index:2;">
                         <div style="width:100%; display:flex; align-items:center; gap:16px;">
-                            <div style="flex:1; font-size:26px; font-weight:700; letter-spacing:-0.5px; line-height:1.1; color:${theme['text']};">Toolkit</div>
+                            <div style="flex:1; font-size:26px; font-weight:700; letter-spacing:-0.5px; line-height:1.1; color:${theme['text']};">${title}</div>
                             <div style="min-width:38px; width:38px; max-width:38px; height:38px; box-sizing:border-box; padding:8px; display:flex; align-items:center; justify-content:center; border-radius:400px; background-color:${theme['content-bg']}; cursor:pointer; transition:background-color 0.15s ease;">
                                 <svg viewBox="0 0 24 24" style="width:20px; height:20px; stroke:${theme['text']}; stroke-width:1.6; stroke-linecap:round; stroke-linejoin:round; opacity:0.75; fill:none;">
                                     <circle cx="12" cy="12" r="3.2"></circle>
@@ -189,14 +249,18 @@
                 el.nextElementSibling.style.display = open ? "none" : "flex";
             });
 
-            document.querySelectorAll("[data-tool]").forEach((el) => customContext(el, context));
+            document.querySelectorAll("[data-tool]").forEach((el) => {
+                customContext(el, context);
+                el.addEventListener('click', () => {
+                    const elemObj = obj[el.dataset.category][el.dataset.tool]
+                    page.innerHTML = elemObj.html;
+                    const js = new Function(elemObj.js);
+                    js();
+                })
+            });
         }
 
-        showList(tools, {
-            "Rename Tool" : `const next = (prompt("Rename tool", el.dataset.tool) || "").trim(); if (next && next !== el.dataset.tool) { tools[el.dataset.category] = Object.fromEntries(Object.entries(tools[el.dataset.category]).map(([key, tool]) => [key === el.dataset.tool ? next : key, tool])); showList(tools, context); }`,
-            "Edit Tool" : `console.log("Edit", el.dataset.category, el.dataset.tool, tools[el.dataset.category][el.dataset.tool]);`,
-            "Delete Tool" : `if (confirm("Delete " + el.dataset.tool + "?")) { delete tools[el.dataset.category][el.dataset.tool]; showList(tools, context); }`
-        });
+        lockScreen();
 
         /*
             TOOLS
