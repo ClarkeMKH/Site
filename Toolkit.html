@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Toolkit</title>
+    <style>
+
+    </style>
+</head>
+<body style="padding:0px; margin:0px; font-family:Verdana, sans-serif; -webkit-font-smoothing:antialiased; background-color:rgba(241,242,244,1); color:rgba(35,40,48,1);">
+
+    <div id="page" style="height:100dvh;"></div>
+
+    <script>
+        const page = document.getElementById("page");
+
+        const theme = {
+            "bg" : "rgba(241,242,244,1)",
+            "content-bg" : "rgba(227,229,233,1)",
+            "text" : "rgba(35,40,48,1)"
+        };
+
+        let tools = {
+            "Security" : {
+                "Password Manager" : { "html" : "", "js" : "", "icon" : "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgc3Ryb2tlPSIjMjMyODMwIiBzdHJva2Utd2lkdGg9IjEuNiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBmaWxsPSJub25lIj48cmVjdCB4PSI0IiB5PSIxMC41IiB3aWR0aD0iMTYiIGhlaWdodD0iMTAiIHJ4PSIyLjIiLz48cGF0aCBkPSJNOCAxMC41VjcuNWE0IDQgMCAwIDEgOCAwdjMiLz48Y2lyY2xlIGN4PSIxMiIgY3k9IjE1LjQiIHI9IjEuMSIvPjwvc3ZnPg==" },
+            },
+            "IT Support" : {
+                "Event Log Decoder" : { "html" : "", "js" : "", "icon" : "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgc3Ryb2tlPSIjMjMyODMwIiBzdHJva2Utd2lkdGg9IjEuNiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBmaWxsPSJub25lIj48cGF0aCBkPSJNNiAzLjVoOGw0IDR2MTNhMSAxIDAgMCAxLTEgMUg2YTEgMSAwIDAgMS0xLTF2LTE2YTEgMSAwIDAgMSAxLTF6Ii8+PHBhdGggZD0iTTE0IDMuNXY0aDQiLz48cGF0aCBkPSJNOC41IDEyaDdNOC41IDE1LjVoN004LjUgMTloNCIvPjwvc3ZnPg==" },
+                "Command Vault" : { "html" : "", "js" : "", "icon" : "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgc3Ryb2tlPSIjMjMyODMwIiBzdHJva2Utd2lkdGg9IjEuNiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBmaWxsPSJub25lIj48cmVjdCB4PSIzIiB5PSI0LjUiIHdpZHRoPSIxOCIgaGVpZ2h0PSIxNSIgcng9IjIuMiIvPjxwYXRoIGQ9Im03LjUgMTAgMi42IDIuMi0yLjYgMi4yIi8+PHBhdGggZD0iTTEzIDE0LjZoMy41Ii8+PC9zdmc+" },
+                "Asset Tag Generator" : { "html" : "", "js" : "", "icon" : "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgc3Ryb2tlPSIjMjMyODMwIiBzdHJva2Utd2lkdGg9IjEuNiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBmaWxsPSJub25lIj48cGF0aCBkPSJNMTEuNiAzLjVIMjBhLjUuNSAwIDAgMSAuNS41djguNGExIDEgMCAwIDEtLjMuN2wtNy40IDcuNGExIDEgMCAwIDEtMS40IDBsLTcuNy03LjdhMSAxIDAgMCAxIDAtMS40bDcuNC03LjRhMSAxIDAgMCAxIC41LS41eiIvPjxjaXJjbGUgY3g9IjE2LjQiIGN5PSI3LjYiIHI9IjEuNCIvPjwvc3ZnPg==" },
+                "JSON Viewer" : { "html" : "", "js" : "", "icon" : "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgc3Ryb2tlPSIjMjMyODMwIiBzdHJva2Utd2lkdGg9IjEuNiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBmaWxsPSJub25lIj48cGF0aCBkPSJNOSAzLjVjLTIgMC0yLjYgMS0yLjYgMi42djIuNmMwIDEuNi0uOSAyLjQtMi40IDIuNHYxLjhjMS41IDAgMi40LjggMi40IDIuNHYyLjZjMCAxLjYuNiAyLjYgMi42IDIuNiIvPjxwYXRoIGQ9Ik0xNSAzLjVjMiAwIDIuNiAxIDIuNiAyLjZ2Mi42YzAgMS42LjkgMi40IDIuNCAyLjR2MS44Yy0xLjUgMC0yLjQuOC0yLjQgMi40djIuNmMwIDEuNi0uNiAyLjYtMi42IDIuNiIvPjwvc3ZnPg==" },
+            },
+            "Networking" : {
+                "DNS Lookup" : { "html" : "", "js" : "", "icon" : "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgc3Ryb2tlPSIjMjMyODMwIiBzdHJva2Utd2lkdGg9IjEuNiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBmaWxsPSJub25lIj48Y2lyY2xlIGN4PSIxMiIgY3k9IjEyIiByPSI4LjUiLz48cGF0aCBkPSJNMy41IDEyaDE3Ii8+PHBhdGggZD0iTTEyIDMuNWExMyAxMyAwIDAgMSAwIDE3IDEzIDEzIDAgMCAxIDAtMTd6Ii8+PC9zdmc+" },
+                "Subnet Calculator" : { "html" : "", "js" : "", "icon" : "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgc3Ryb2tlPSIjMjMyODMwIiBzdHJva2Utd2lkdGg9IjEuNiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBmaWxsPSJub25lIj48cmVjdCB4PSI0IiB5PSIzIiB3aWR0aD0iMTYiIGhlaWdodD0iMTgiIHJ4PSIyLjIiLz48cGF0aCBkPSJNNy41IDcuNWg5Ii8+PHBhdGggZD0iTTggMTJoLjAxTTEyIDEyaC4wMU0xNiAxMmguMDFNOCAxNi41aC4wMU0xMiAxNi41aC4wMU0xNiAxNi41aC4wMSIvPjwvc3ZnPg==" },
+                "Speed Test" : { "html" : "", "js" : "", "icon" : "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgc3Ryb2tlPSIjMjMyODMwIiBzdHJva2Utd2lkdGg9IjEuNiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBmaWxsPSJub25lIj48cGF0aCBkPSJNNCAxN2E4LjUgOC41IDAgMSAxIDE2IDAiLz48cGF0aCBkPSJtMTIgMTQgNC00LjUiLz48Y2lyY2xlIGN4PSIxMiIgY3k9IjE3IiByPSIxLjMiLz48L3N2Zz4=" },
+            },
+            "Integrations" : {
+                "AI Chat (OpenRouter)" : { "html" : "", "js" : "", "icon" : "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgc3Ryb2tlPSIjMjMyODMwIiBzdHJva2Utd2lkdGg9IjEuNiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBmaWxsPSJub25lIj48cGF0aCBkPSJNMjAuNSAxMi41YTcuNSA3LjUgMCAwIDEtMTAuOSA2LjdMNCAyMC41bDEuNC01LjRBNy41IDcuNSAwIDEgMSAyMC41IDEyLjV6Ii8+PHBhdGggZD0iTTkgMTFoNk05IDE0aDQiLz48L3N2Zz4=" },
+                "Microsoft Admin (365)" : { "html" : "", "js" : "", "icon" : "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgc3Ryb2tlPSIjMjMyODMwIiBzdHJva2Utd2lkdGg9IjEuNiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBmaWxsPSJub25lIj48cmVjdCB4PSIzLjUiIHk9IjMuNSIgd2lkdGg9IjcuNSIgaGVpZ2h0PSI3LjUiIHJ4PSIxIi8+PHJlY3QgeD0iMTMiIHk9IjMuNSIgd2lkdGg9IjcuNSIgaGVpZ2h0PSI3LjUiIHJ4PSIxIi8+PHJlY3QgeD0iMy41IiB5PSIxMyIgd2lkdGg9IjcuNSIgaGVpZ2h0PSI3LjUiIHJ4PSIxIi8+PHJlY3QgeD0iMTMiIHk9IjEzIiB3aWR0aD0iNy41IiBoZWlnaHQ9IjcuNSIgcng9IjEiLz48L3N2Zz4=" },
+                "Github Repos (Github)" : { "html" : "", "js" : "", "icon" : "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgc3Ryb2tlPSIjMjMyODMwIiBzdHJva2Utd2lkdGg9IjEuNiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBmaWxsPSJub25lIj48cGF0aCBkPSJNNSA0LjVBMS41IDEuNSAwIDAgMSA2LjUgM0gxOXYxNC41SDYuNUExLjUgMS41IDAgMCAwIDUgMTl6Ii8+PHBhdGggZD0iTTUgMTlhMiAyIDAgMCAwIDIgMmgxMiIvPjxwYXRoIGQ9Ik05IDcuNWg2Ii8+PC9zdmc+" },
+            },
+            "Workshop" : {
+                "Website Builder" : { "html" : "", "js" : "", "icon" : "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgc3Ryb2tlPSIjMjMyODMwIiBzdHJva2Utd2lkdGg9IjEuNiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBmaWxsPSJub25lIj48cmVjdCB4PSIzIiB5PSI0LjUiIHdpZHRoPSIxOCIgaGVpZ2h0PSIxNSIgcng9IjIuMiIvPjxwYXRoIGQ9Ik0zIDloMTgiLz48cGF0aCBkPSJNNi4yIDYuOGguMDFNOC45IDYuOGguMDFNMTEuNiA2LjhoLjAxIi8+PC9zdmc+" },
+                "Game Creator" : { "html" : "", "js" : "", "icon" : "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgc3Ryb2tlPSIjMjMyODMwIiBzdHJva2Utd2lkdGg9IjEuNiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBmaWxsPSJub25lIj48cmVjdCB4PSIyLjUiIHk9IjciIHdpZHRoPSIxOSIgaGVpZ2h0PSIxMCIgcng9IjQiLz48cGF0aCBkPSJNNyAxMC41djNNNS41IDEyaDMiLz48Y2lyY2xlIGN4PSIxNiIgY3k9IjExLjIiIHI9IjEiLz48Y2lyY2xlIGN4PSIxOC4yIiBjeT0iMTMuNCIgcj0iMSIvPjwvc3ZnPg==" },
+                "QR Codes" : { "html" : "", "js" : "", "icon" : "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgc3Ryb2tlPSIjMjMyODMwIiBzdHJva2Utd2lkdGg9IjEuNiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBmaWxsPSJub25lIj48cmVjdCB4PSIzLjUiIHk9IjMuNSIgd2lkdGg9IjYuNSIgaGVpZ2h0PSI2LjUiIHJ4PSIxIi8+PHJlY3QgeD0iMTQiIHk9IjMuNSIgd2lkdGg9IjYuNSIgaGVpZ2h0PSI2LjUiIHJ4PSIxIi8+PHJlY3QgeD0iMy41IiB5PSIxNCIgd2lkdGg9IjYuNSIgaGVpZ2h0PSI2LjUiIHJ4PSIxIi8+PHBhdGggZD0iTTE0IDE0aDN2M2gtM3pNMjAuNSAxNHYzTTE3LjUgMjAuNWgzTTE0IDIwLjVoLjAxIi8+PC9zdmc+" },
+                "Bar Codes" : { "html" : "", "js" : "", "icon" : "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgc3Ryb2tlPSIjMjMyODMwIiBzdHJva2Utd2lkdGg9IjEuNiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBmaWxsPSJub25lIj48cGF0aCBkPSJNNCA1djE0TTcgNXYxNE0xMC41IDV2MTRNMTQgNXYxME0xNyA1djE0TTIwIDV2MTQiLz48L3N2Zz4=" },
+                "Sprite / Map Editor" : { "html" : "", "js" : "", "icon" : "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgc3Ryb2tlPSIjMjMyODMwIiBzdHJva2Utd2lkdGg9IjEuNiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBmaWxsPSJub25lIj48cmVjdCB4PSIzIiB5PSIzIiB3aWR0aD0iMTgiIGhlaWdodD0iMTgiIHJ4PSIyIi8+PHBhdGggZD0iTTkgM3YxOE0xNSAzdjE4TTMgOWgxOE0zIDE1aDE4Ii8+PC9zdmc+" },
+                "SFX / Music Editor" : { "html" : "", "js" : "", "icon" : "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgc3Ryb2tlPSIjMjMyODMwIiBzdHJva2Utd2lkdGg9IjEuNiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBmaWxsPSJub25lIj48cGF0aCBkPSJNNCAxMHY0TTcuNSA3djEwTTExIDQuNXYxNU0xNC41IDguNXY3TTE4IDYuNXYxMU0yMSAxMHY0Ii8+PC9zdmc+" },
+                "JS Minifier" : { "html" : "", "js" : "", "icon" : "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgc3Ryb2tlPSIjMjMyODMwIiBzdHJva2Utd2lkdGg9IjEuNiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBmaWxsPSJub25lIj48cGF0aCBkPSJtOC41IDguNS00IDMuNSA0IDMuNSIvPjxwYXRoIGQ9Im0xNS41IDguNSA0IDMuNS00IDMuNSIvPjxwYXRoIGQ9Im0xMy41IDUuNS0zIDEzIi8+PC9zdmc+" },
+            },
+            "Personal" : {
+                "Shopping Lists" : { "html" : "", "js" : "", "icon" : "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgc3Ryb2tlPSIjMjMyODMwIiBzdHJva2Utd2lkdGg9IjEuNiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBmaWxsPSJub25lIj48cGF0aCBkPSJNMyA0LjVoMi4ybDIuMyAxMWgxMGwyLjItNy41SDYuMyIvPjxjaXJjbGUgY3g9IjkuNSIgY3k9IjE5IiByPSIxLjMiLz48Y2lyY2xlIGN4PSIxNi41IiBjeT0iMTkiIHI9IjEuMyIvPjwvc3ZnPg==" },
+                "Recipe Book" : { "html" : "", "js" : "", "icon" : "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgc3Ryb2tlPSIjMjMyODMwIiBzdHJva2Utd2lkdGg9IjEuNiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBmaWxsPSJub25lIj48cGF0aCBkPSJNNi41IDIwLjVBMS41IDEuNSAwIDAgMSA1IDE5VjQuNUExLjUgMS41IDAgMCAxIDYuNSAzSDE5djE3LjV6Ii8+PHBhdGggZD0iTTkuNSA3LjV2M2EyLjUgMi41IDAgMCAwIDUgMHYtMyIvPjxwYXRoIGQ9Ik0xMiAxMC41djUiLz48L3N2Zz4=" },
+                "Work-Out Routines" : { "html" : "", "js" : "", "icon" : "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgc3Ryb2tlPSIjMjMyODMwIiBzdHJva2Utd2lkdGg9IjEuNiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBmaWxsPSJub25lIj48cGF0aCBkPSJNMi41IDEwdjRNNS41IDcuNXY5TTE4LjUgNy41djlNMjEuNSAxMHY0Ii8+PHBhdGggZD0iTTUuNSAxMmgxMyIvPjwvc3ZnPg==" },
+                "Study Guide" : { "html" : "", "js" : "", "icon" : "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgc3Ryb2tlPSIjMjMyODMwIiBzdHJva2Utd2lkdGg9IjEuNiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBmaWxsPSJub25lIj48cGF0aCBkPSJtMTIgNCA5LjUgNC41TDEyIDEzIDIuNSA4LjV6Ii8+PHBhdGggZD0iTTYuNSAxMC44VjE2YzAgMS41IDIuNSAzIDUuNSAzczUuNS0xLjUgNS41LTN2LTUuMiIvPjwvc3ZnPg==" },
+                "Expense Tracker" : { "html" : "", "js" : "", "icon" : "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgc3Ryb2tlPSIjMjMyODMwIiBzdHJva2Utd2lkdGg9IjEuNiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBmaWxsPSJub25lIj48Y2lyY2xlIGN4PSIxMiIgY3k9IjEyIiByPSI4LjUiLz48cGF0aCBkPSJNMTQuNCA4LjRhMi42IDIuNiAwIDAgMC00LjUgMS45djUuMyIvPjxwYXRoIGQ9Ik05IDEyLjZoMy42TTkuMiAxNi4yaDUuNiIvPjwvc3ZnPg==" },
+                "Decision Maker" : { "html" : "", "js" : "", "icon" : "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgc3Ryb2tlPSIjMjMyODMwIiBzdHJva2Utd2lkdGg9IjEuNiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBmaWxsPSJub25lIj48cGF0aCBkPSJNMy41IDdoNGw5IDEwaDQiLz48cGF0aCBkPSJNMy41IDE3aDRsMy0zLjQiLz48cGF0aCBkPSJtMTggNC41IDIuNSAyLjVMMTggOS41Ii8+PHBhdGggZD0ibTE4IDE0LjUgMi41IDIuNUwxOCAxOS41Ii8+PC9zdmc+" },
+            },
+        };
+
+        let cache = { "collapsed" : {} };
+
+        // Salt and IV are random per save. Wrong password fails the GCM auth tag and throws.
+        async function saveCache(password) {
+            const salt = crypto.getRandomValues(new Uint8Array(16));
+            const iv = crypto.getRandomValues(new Uint8Array(12));
+            const key = await crypto.subtle.deriveKey(
+                { "name" : "PBKDF2", "salt" : salt, "iterations" : 600000, "hash" : "SHA-256" },
+                await crypto.subtle.importKey("raw", new TextEncoder().encode(password), "PBKDF2", false, ["deriveKey"]),
+                { "name" : "AES-GCM", "length" : 256 }, false, ["encrypt"]
+            );
+            const data = await crypto.subtle.encrypt({ "name" : "AES-GCM", "iv" : iv }, key, new TextEncoder().encode(JSON.stringify(cache)));
+
+            const db = await new Promise((done, fail) => {
+                const req = indexedDB.open("toolkit", 1);
+                req.onupgradeneeded = () => req.result.createObjectStore("cache");
+                req.onsuccess = () => done(req.result);
+                req.onerror = () => fail(req.error);
+            });
+            await new Promise((done, fail) => {
+                const req = db.transaction("cache", "readwrite").objectStore("cache").put({ "salt" : salt, "iv" : iv, "data" : data }, "cache");
+                req.onsuccess = () => done();
+                req.onerror = () => fail(req.error);
+            });
+            db.close();
+        }
+
+        async function loadCache(password) {
+            const db = await new Promise((done, fail) => {
+                const req = indexedDB.open("toolkit", 1);
+                req.onupgradeneeded = () => req.result.createObjectStore("cache");
+                req.onsuccess = () => done(req.result);
+                req.onerror = () => fail(req.error);
+            });
+            const saved = await new Promise((done, fail) => {
+                const req = db.transaction("cache", "readonly").objectStore("cache").get("cache");
+                req.onsuccess = () => done(req.result);
+                req.onerror = () => fail(req.error);
+            });
+            db.close();
+            if (!saved) return false;
+
+            const key = await crypto.subtle.deriveKey(
+                { "name" : "PBKDF2", "salt" : saved["salt"], "iterations" : 600000, "hash" : "SHA-256" },
+                await crypto.subtle.importKey("raw", new TextEncoder().encode(password), "PBKDF2", false, ["deriveKey"]),
+                { "name" : "AES-GCM", "length" : 256 }, false, ["decrypt"]
+            );
+            cache = JSON.parse(new TextDecoder().decode(await crypto.subtle.decrypt({ "name" : "AES-GCM", "iv" : saved["iv"] }, key, saved["data"]).catch(() => { throw new Error("Wrong master password"); })));
+            return true;
+        }
+
+        function customContext(el, obj) {
+            let menu = document.getElementById("context");
+            if (!menu) {
+                menu = document.body.appendChild(document.createElement("div"));
+                menu.id = "context";
+                menu.setAttribute("style", `position:fixed; top:0px; left:0px; z-index:50; display:none; min-width:180px; box-sizing:border-box; padding:6px; font-size:13px; color:${theme['text']}; background-color:rgba(255,255,255,1); border:1px solid rgba(35,40,48,0.06); border-radius:12px; box-shadow:0 8px 28px rgba(35,40,48,0.18); user-select:none; -webkit-user-select:none;`);
+                menu.oncontextmenu = (e) => e.preventDefault();
+                document.addEventListener("click", () => menu.style.display = "none");
+                document.addEventListener("contextmenu", () => menu.style.display = "none");
+                document.addEventListener("scroll", () => menu.style.display = "none", true);
+                document.addEventListener("keydown", (e) => { if (e.key === "Escape") menu.style.display = "none"; });
+            }
+
+            el.oncontextmenu = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+
+                menu.innerHTML = Object.keys(obj).map((label) => `
+                    <div onmouseenter="this.style.backgroundColor='${theme['bg']}'" onmouseleave="this.style.backgroundColor='rgba(0,0,0,0)'" style="min-height:34px; height:34px; max-height:34px; width:100%; box-sizing:border-box; padding:0 12px; display:flex; align-items:center; border-radius:8px; background-color:rgba(0,0,0,0); cursor:pointer; transition:background-color 0.1s ease;">${label}</div>
+                `).join("");
+
+                Object.values(obj).forEach((js, i) => menu.children[i].onclick = () => { menu.style.display = "none"; new Function("el", "context", js).call(el, el, obj); });
+
+                menu.style.display = "block";
+                menu.style.left = `${Math.min(e.clientX, window.innerWidth - menu.offsetWidth - 8)}px`;
+                menu.style.top = `${Math.min(e.clientY, window.innerHeight - menu.offsetHeight - 8)}px`;
+            };
+        }
+
+        function showList(obj, context) {
+            page.innerHTML = `
+                <div style="width:100%; height:100%; box-sizing:border-box; display:flex; flex-direction:column; background-color:${theme['bg']};">
+                    <div id="header" style="width:100%; box-sizing:border-box; padding:22px 20px 18px 20px; display:flex; flex-direction:column; gap:16px; background-color:${theme['bg']}; border-bottom:1px solid rgba(35,40,48,0.08); box-shadow:0 4px 14px rgba(35,40,48,0.05); z-index:2;">
+                        <div style="width:100%; display:flex; align-items:center; gap:16px;">
+                            <div style="flex:1; font-size:26px; font-weight:700; letter-spacing:-0.5px; line-height:1.1; color:${theme['text']};">Toolkit</div>
+                            <div style="min-width:38px; width:38px; max-width:38px; height:38px; box-sizing:border-box; padding:8px; display:flex; align-items:center; justify-content:center; border-radius:400px; background-color:${theme['content-bg']}; cursor:pointer; transition:background-color 0.15s ease;">
+                                <svg viewBox="0 0 24 24" style="width:20px; height:20px; stroke:${theme['text']}; stroke-width:1.6; stroke-linecap:round; stroke-linejoin:round; opacity:0.75; fill:none;">
+                                    <circle cx="12" cy="12" r="3.2"></circle>
+                                    <path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1 1.56V21a2 2 0 1 1-4 0v-.09a1.7 1.7 0 0 0-1.11-1.56 1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.56-1H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.65 8.6a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34H9a1.7 1.7 0 0 0 1-1.56V3a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1 1.56 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87V9a1.7 1.7 0 0 0 1.56 1H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.51 1z"></path>
+                                </svg>
+                            </div>
+                        </div>
+                        <div style="width:100%; box-sizing:border-box; height:46px; padding:0 14px; display:flex; align-items:center; gap:10px; background-color:${theme['content-bg']}; border:1px solid rgba(35,40,48,0.06); border-radius:12px;">
+                            <svg viewBox="0 0 24 24" style="min-width:18px; width:18px; max-width:18px; height:18px; stroke:${theme['text']}; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; opacity:0.5; fill:none;">
+                                <circle cx="11" cy="11" r="7"></circle>
+                                <path d="m20 20-3.2-3.2"></path>
+                            </svg>
+                            <input type="text" placeholder="Search tools" style="width:100%; height:100%; border:none; outline:none; background-color:rgba(0,0,0,0); font-family:inherit; font-size:15px; letter-spacing:0.1px; color:${theme['text']};">
+                        </div>
+                    </div>
+                    <div id="list" style="width:100%; flex:1; box-sizing:border-box; display:flex; flex-direction:column; gap:8px; padding:8px 20px 32px 20px; overflow-y:auto; scrollbar-width:none; -webkit-overflow-scrolling:touch; background-color:${theme['bg']};">
+                        ${Object.entries(obj).map(([category, items]) => `
+                            <div data-toggle="${category}" style="margin:18px 0 2px 2px; display:flex; align-items:center; gap:6px; font-size:11px; font-weight:700; letter-spacing:1.4px; text-transform:uppercase; color:rgba(35,40,48,0.45); cursor:pointer; user-select:none; -webkit-user-select:none; -webkit-tap-highlight-color:rgba(0,0,0,0);">
+                                <div>${category}</div>
+                                <svg viewBox="0 0 24 24" style="min-width:14px; width:14px; max-width:14px; height:14px; stroke:${theme['text']}; stroke-width:2.4; stroke-linecap:round; stroke-linejoin:round; opacity:0.4; fill:none; transform:rotate(${cache['collapsed'][category] ? -90 : 0}deg); transition:transform 0.18s ease;">
+                                    <path d="m6 9.5 6 6 6-6"></path>
+                                </svg>
+                            </div>
+                            <div style="width:100%; display:${cache['collapsed'][category] ? "none" : "flex"}; flex-direction:column; gap:8px;">
+                                ${Object.entries(items).map(([name, tool]) => `
+                                    <div data-category="${category}" data-tool="${name}" style="min-height:50px; height:50px; max-height:50px; width:100%; box-sizing:border-box; padding:0 14px; display:flex; align-items:center; gap:12px; font-size:15px; letter-spacing:0.1px; color:${theme['text']}; background-color:rgba(255,255,255,1); border-radius:12px; border:1px solid rgba(35,40,48,0.06); box-shadow:0 1px 2px rgba(35,40,48,0.06), 0 4px 12px rgba(35,40,48,0.04); cursor:pointer; transition:transform 0.12s ease, box-shadow 0.12s ease;">
+                                        <img src="${tool['icon']}" alt="" style="min-width:32px; width:32px; max-width:32px; height:32px; box-sizing:border-box; padding:6px; border-radius:9px; background-color:${theme['bg']}; opacity:0.85;">
+                                        <div style="flex:1; overflow:hidden; white-space:nowrap; text-overflow:ellipsis;">${name}</div>
+                                    </div>
+                                `).join("")}
+                            </div>
+                        `).join("")}
+                    </div>
+                </div>
+            `;
+
+            document.querySelectorAll("[data-toggle]").forEach((el) => el.onclick = () => {
+                const open = cache["collapsed"][el.dataset.toggle] !== true;
+                cache["collapsed"][el.dataset.toggle] = open;
+                el.children[1].style.transform = open ? "rotate(-90deg)" : "rotate(0deg)";
+                el.nextElementSibling.style.display = open ? "none" : "flex";
+            });
+
+            document.querySelectorAll("[data-tool]").forEach((el) => customContext(el, context));
+        }
+
+        showList(tools, {
+            "Rename Tool" : `const next = (prompt("Rename tool", el.dataset.tool) || "").trim(); if (next && next !== el.dataset.tool) { tools[el.dataset.category] = Object.fromEntries(Object.entries(tools[el.dataset.category]).map(([key, tool]) => [key === el.dataset.tool ? next : key, tool])); showList(tools, context); }`,
+            "Edit Tool" : `console.log("Edit", el.dataset.category, el.dataset.tool, tools[el.dataset.category][el.dataset.tool]);`,
+            "Delete Tool" : `if (confirm("Delete " + el.dataset.tool + "?")) { delete tools[el.dataset.category][el.dataset.tool]; showList(tools, context); }`
+        });
+
+        /*
+            TOOLS
+            
+            (Searchable Lists)
+            - Website Builder
+            - Game Creator
+            - Password Manager
+            - Event Log Decoder
+            - Command Vault
+            - Shopping Lists
+            - Recipe Book
+            - Workout Routines
+            - Study Guide
+            - DNS Lookup
+            - QR Codes
+            - Bar Codes
+            - Expense Tracker
+            - Sprite Editor / Map Builder
+            - SFX Edtior / Music Builder
+
+            (Other)
+            - Subnet Calculator
+            - Asset Tag Generator
+            - Speed Test
+            - What's my Info
+            - JSON Viewer
+            - JS Minifier
+            - Decision Maker
+
+            (Integrations)
+            - AI Chat (Open Router)
+            - 365 Admin
+            - Github
+
+
+
+
+
+
+
+        */
+
+    </script>
+</body>
+</html>
