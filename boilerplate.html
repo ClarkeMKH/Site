@@ -12,26 +12,36 @@
             const page = el("page");
 
             let components = {
-                "Home": {
-                    "html": "\n<button onclick=\"editComponent('Home');\">Edit Home</button>",
-                    "js": "if (!window.unlocked) {\n    if (await loadComponents()) {\n        while (true) {\n            const attempt = prompt(\"Enter master password:\");\n            if (attempt === null) return;\n            try {\n                await loadComponents(attempt);\n                window.password = attempt;\n                break;\n            } catch {\n                alert(\"Wrong password\");\n            }\n        }\n        window.unlocked = true;\n        page.innerHTML = \"\";\n        return addComponent(\"Home\", page);\n    }\n\n    const set = prompt(\"Set a master password:\");\n    if (set === null) return;\n    window.password = set;\n    await saveComponents(window.password);\n    window.unlocked = true;\n}\n\n\n\n\n\nwindow.editComponent = function(compName, keyEditing=\"html\") {\n    if (el(\"editingModal\")) el(\"editingModal\").remove();\n    let btns = \"\";\n    for (const key in components[compName]) {\n        btns += `<button onclick=\"components['${compName}']['${keyEditing}'] = el('txt').value; editComponent('${compName}', '${key}')\" style=\"padding:5px 20px; cursor:pointer; box-shadow:1px 1px 2px #000000; font-size:20px; border-radius:8px; ${(keyEditing == key) ? 'background-color:#8888ff;' : ''}\">${key}</button>`;\n    }\n    page.innerHTML += `\n        <div id=\"editingModal\" style=\"width:calc(100% - 100px); height:calc(100% - 100px); position:fixed; left:40px; top:40px; padding:5px; gap:5px; border:solid #000000 5px; border-radius:8px; box-shadow:1px 1px 2px #000000; display:flex; flex-direction:column; background-color:#dddddd;\">\n            <div style=\"display:flex; gap:10px;\">\n                ${btns}\n            </div>\n            <textarea id=\"txt\" wrap=\"off\" spellcheck=\"false\" style=\"width:calc(100% - 12px); height:calc(100% - 12px); padding:5px; outline:none; border:solid #000000 1px; resize:none; background-color:#eeeeee;\"></textarea>\n            <button id=\"saveButton\" style=\"padding:5px 20px; cursor:pointer; box-shadow:1px 1px 2px #000000; font-size:20px; border-radius:8px;\">Save</button>\n        </div>\n    `;\n    const txt = el(\"txt\");\n    txt.value = components[compName][keyEditing];\n    el(\"saveButton\").onclick = async function() {\n        components[compName][keyEditing] = txt.value;\n        navigator.clipboard.writeText(JSON.stringify(components, null, 4));\n        await saveComponents(window.password);\n        el(\"editingModal\").remove();\n    };\n    textAreaTabFunctionality(txt);\n}\n\n\ncustomContext(page);\n \n\n",
-                    "category": "",
-                    "icon": "&#127968;"
-                }
-            }
-
+    "Home": {
+        "html": "\n<div id=\"menu\" style=\"width:300px; height:100%; position:fixed; top:0px; left:-301px; display:flex; flex-direction:column; gap:5px; background-color:#dddddd; border-right:solid #222222 1px; transition:all 0.3s ease-in-out;\">\n    <div style=\"font-size:26px; margin:10px;\">Toolkit</div>\n    <div id=\"menu-list\" style=\"width:calc(100% - 20px); height:calc(100% - 20px); padding:10px; display:flex; flex-direction:column; gap:5px;\">\n        <input type=\"text\" placeholder=\"Search...\" style=\"width:calc(100% - 12px); padding:5px; font-size:22px; border:solid #000000 1px; border-radius:8px; background-color:#bbbbbb; outline:none; margin-bottom:10px;\"></input>\n    </div>\n    <div id=\"menu-toggle\" style=\"width:30px; height:30px; background-color:#dddddd; border:solid #222222 2px; border-radius:8px; position:absolute; top:10px; right:-45px; cursor:pointer; box-shadow:1px 1px 2px #000000;\"></div>\n</div>\n\n",
+        "js": "if (!window.unlocked) {\n    if (await loadComponents()) {\n        while (true) {\n            const attempt = prompt(\"Enter master password:\");\n            if (attempt === null) return;\n            try {\n                await loadComponents(attempt);\n                window.password = attempt;\n                break;\n            } catch {\n                alert(\"Wrong password\");\n            }\n        }\n        window.unlocked = true;\n        page.innerHTML = \"\";\n        return addComponent(\"Home\", page);\n    }\n\n    const set = prompt(\"Set a master password:\");\n    if (set === null) return;\n    window.password = set;\n    await saveComponents(window.password);\n    window.unlocked = true;\n}\n\n\n\n\n\nwindow.editComponent = function(compName, keyEditing=\"html\") {\n    if (el(\"editingModal\")) el(\"editingModal\").remove();\n    let btns = \"\";\n    for (const key in components[compName]) {\n        btns += `<button onclick=\"components['${compName}']['${keyEditing}'] = el('txt').value; editComponent('${compName}', '${key}')\" style=\"padding:5px 20px; cursor:pointer; box-shadow:1px 1px 2px #000000; font-size:20px; border-radius:8px; ${(keyEditing == key) ? 'background-color:#8888ff;' : ''}\">${key}</button>`;\n    }\n    page.innerHTML += `\n        <div id=\"editingModal\" style=\"width:calc(100% - 100px); height:calc(100% - 100px); position:fixed; left:40px; top:40px; padding:5px; gap:5px; border:solid #000000 5px; border-radius:8px; box-shadow:1px 1px 2px #000000; display:flex; flex-direction:column; background-color:#dddddd;\">\n            <div style=\"display:flex; gap:10px;\">\n                ${btns}\n            </div>\n            <textarea id=\"txt\" wrap=\"off\" spellcheck=\"false\" style=\"width:calc(100% - 12px); height:calc(100% - 12px); padding:5px; outline:none; border:solid #000000 1px; resize:none; background-color:#eeeeee;\"></textarea>\n            <button id=\"saveButton\" style=\"padding:5px 20px; cursor:pointer; box-shadow:1px 1px 2px #000000; font-size:20px; border-radius:8px;\">Save</button>\n        </div>\n    `;\n    const txt = el(\"txt\");\n    txt.value = components[compName][keyEditing];\n    el(\"saveButton\").onclick = async function() {\n        components[compName][keyEditing] = txt.value;\n        navigator.clipboard.writeText(JSON.stringify(components, null, 4));\n        await saveComponents(window.password);\n        el(\"editingModal\").remove();\n    };\n    textAreaTabFunctionality(txt);\n}\n\n\n\n\n\n\nel(\"menu-toggle\").onclick = function() {\n    el(\"menu\").style.left = (el(\"menu\").style.left == \"-301px\") ? \"0px\" : \"-301px\";\n}\n\n\n\npage.addEventListener(\"click\", (e) => {\n    if (el(\"contextMenu\")) el(\"contextMenu\").remove();\n})\n\n\n\n\nfor (const comp in components) {\n    const btn = document.createElement(\"div\");\n    btn.style.cssText = \"width:calc(100% - 10px); padding:5px; font-size:22px; border-radius:4px; cursor:pointer;\";\n    btn.innerHTML = comp;\n    btn.onclick = function() {page.innerHTML = \"\"; addComponent(comp, page);}\n    btn.onmouseenter = function() {this.style.backgroundColor = \"#bbbbbb\"}\n    btn.onmouseleave = function() {this.style.backgroundColor = \"rgba(0,0,0,0)\"}\n    el(\"menu-list\").appendChild(btn);\n\n    const contextActions = {\n        \"Add to Home\": function() {\n            addComponent(comp, page);\n            el(\"menu-toggle\").click();\n        },\n        \"Edit\": function() {editComponent(comp);}\n    };\n    if (comp == \"Home\") delete contextActions[\"Add to Home\"];\n\n    customContext(btn, contextActions);\n \n}\n\n\n\n\n\n\n\n\n",
+        "category": "",
+        "icon": "&#127968;"
+    },
+    "Test Component 1": {
+        "html": "test1",
+        "js": "",
+        "category": "",
+        "icon": ""
+    },
+    "Test Component 2": {
+        "html": "test2",
+        "js": "",
+        "category": "",
+        "icon": ""
+    }
+}
 
 
             function el(id) {
                 return document.getElementById(id);
             }
 
-            async function addComponent(compName, target) {
-                target.innerHTML += components[compName].html;
-                const AsyncFunction = Object.getPrototypeOf(async function(){}).constructor;
-                let js = new AsyncFunction(components[compName].js);
-                await js();
-            }
+           async function addComponent(compName, target) {
+            target.insertAdjacentHTML("beforeend", components[compName].html);
+            const AsyncFunction = Object.getPrototypeOf(async function(){}).constructor;
+            await new AsyncFunction(components[compName].js)();
+        }
 
             addComponent("Home", page);
 
@@ -57,7 +67,7 @@
                 });
                 db.close();
             }
-            
+
             async function loadComponents(password) {
                 const db = await new Promise((done, fail) => {
                     const req = indexedDB.open("toolkit", 1);
@@ -81,7 +91,7 @@
                 components = JSON.parse(new TextDecoder().decode(await crypto.subtle.decrypt({ "name" : "AES-GCM", "iv" : saved["iv"] }, key, saved["data"]).catch(() => { throw new Error("Wrong master password"); })));
                 return true;
             }
-            
+
             async function clearComponents() {
                 await new Promise((done, fail) => {
                     const req = indexedDB.deleteDatabase("toolkit");
@@ -93,12 +103,27 @@
                 master = "";
             }
 
-            function customContext(target) {
+            function customContext(target, actions={}) {
                 target.addEventListener("contextmenu", (e) => {
                     e.preventDefault();
+                    if (el("contextMenu")) el("contextMenu").remove();
                     const ctx = document.createElement("div");
+                    ctx.id = "contextMenu";
                     ctx.addEventListener("contextmenu", (ctxContext) => {ctxContext.preventDefault();})
-                    ctx.style.cssText = `width:10px; height:10px; border:solid #000000 1px; background-color:#333333; position:fixed; left:${e.clientX}px; top:${e.clientY}px;`;
+                    const targetPos = target.getBoundingClientRect();
+                    ctx.style.cssText = `max-width:200px; min-height:20px; border:solid #000000 1px; display:flex; flex-direction:column; gap:5px; padding:5px; background-color:#dddddd; border-radius:4px; position:fixed; left:${e.clientX}px; top:${e.clientY}px;`;
+                    for (const actionName in actions) {
+                        const btn = document.createElement("div");
+                        btn.innerHTML = actionName;
+                        btn.onmouseenter = function() {this.style.backgroundColor = "#aaaaaa"}
+                        btn.onmouseleave = function() {this.style.backgroundColor = "#dddddd"}
+                        btn.style.cssText = "width:calc(100% - 20px); text-align:center; padding:5px 10px; border-radius:8px; background-color:#dddddd; cursor:pointer;";
+                        ctx.appendChild(btn)
+                        btn.onclick = function() {
+                            el("contextMenu").remove();
+                            actions[actionName]();
+                        }
+                    }
                     document.body.appendChild(ctx)
                 })
             }
@@ -116,5 +141,5 @@
 			    });
 			}
         </script>
-    
+
 </body></html>
