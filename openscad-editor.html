@@ -1,0 +1,919 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OpenSCAD Editor</title>
+<style>
+  :root{
+    --bg:#0d1117;
+    --panel:#141a23;
+    --panel-2:#1a2230;
+    --line:#26303d;
+    --line-hot:#33e1ed;
+    --ink:#d6dee9;
+    --ink-dim:#7f8da0;
+    --amber:#f9d72c;
+    --red:#ff6b6b;
+    --green:#5ddc9a;
+    --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0}
+  body{
+    background:var(--bg);color:var(--ink);
+    font:13px/1.5 var(--mono);
+    display:flex;flex-direction:column;overflow:hidden;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  /* ---------- top bar ---------- */
+  header{
+    display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+    padding:8px 12px;background:var(--panel);
+    border-bottom:1px solid var(--line);
+  }
+  .brand{
+    display:flex;align-items:baseline;gap:8px;margin-right:6px;
+    letter-spacing:.14em;text-transform:uppercase;font-size:11px;color:var(--ink-dim);
+  }
+  .brand b{color:var(--ink);letter-spacing:.22em;font-weight:600}
+  .brand i{
+    font-style:normal;color:var(--line-hot);
+    border:1px solid var(--line);border-radius:2px;padding:1px 5px;font-size:10px;
+  }
+  button,select,label.file{
+    font:inherit;color:var(--ink);background:var(--panel-2);
+    border:1px solid var(--line);border-radius:3px;
+    padding:5px 10px;cursor:pointer;
+  }
+  button:hover,select:hover,label.file:hover{border-color:var(--line-hot);color:#fff}
+  button:disabled{opacity:.45;cursor:not-allowed;border-color:var(--line);color:var(--ink-dim)}
+  button:focus-visible,select:focus-visible,textarea:focus-visible,label.file:focus-within{
+    outline:2px solid var(--line-hot);outline-offset:1px;
+  }
+  #render{
+    background:var(--line-hot);border-color:var(--line-hot);color:#05161a;font-weight:700;
+    letter-spacing:.06em;
+  }
+  #render:hover{background:#6df0f9}
+  #render:disabled{background:var(--panel-2);color:var(--ink-dim);border-color:var(--line)}
+  .kbd{color:#05161a;opacity:.6;font-size:11px}
+  .grow{flex:1}
+  .toggle{display:flex;align-items:center;gap:6px;color:var(--ink-dim);cursor:pointer;user-select:none}
+  .toggle input{accent-color:var(--line-hot);margin:0}
+  .seg{display:flex;border:1px solid var(--line);border-radius:3px;overflow:hidden}
+  .seg button{border:0;border-radius:0;border-left:1px solid var(--line);padding:5px 9px}
+  .seg button:first-child{border-left:0}
+  .seg button[aria-pressed="true"]{background:#0d2a30;color:var(--line-hot)}
+  input[type=file]{display:none}
+
+  /* ---------- layout ---------- */
+  main{flex:1;display:flex;min-height:0}
+  #left{display:flex;flex-direction:column;min-width:220px;width:44%}
+  #split{
+    width:6px;cursor:col-resize;background:var(--panel);
+    border-left:1px solid var(--line);border-right:1px solid var(--line);flex:0 0 auto;
+  }
+  #split:hover,#split.drag{background:var(--line-hot)}
+  #right{flex:1;display:flex;flex-direction:column;min-width:220px;position:relative}
+
+  /* ---------- editor ---------- */
+  .pane-head{
+    display:flex;align-items:center;gap:8px;padding:5px 10px;
+    background:var(--panel);border-bottom:1px solid var(--line);
+    font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-dim);
+  }
+  #editorWrap{flex:1;display:flex;min-height:0;background:#0f151d;overflow:hidden}
+  #gutter{
+    padding:10px 8px 10px 10px;text-align:right;color:#4a5666;background:#0f151d;
+    border-right:1px solid var(--line);user-select:none;overflow:hidden;white-space:pre;
+    font:13px/1.55 var(--mono);tab-size:2;
+  }
+  #code{
+    flex:1;resize:none;border:0;outline:0;background:transparent;color:var(--ink);
+    padding:10px 12px;font:13px/1.55 var(--mono);tab-size:2;white-space:pre;overflow:auto;
+    caret-color:var(--line-hot);
+  }
+  #statusbar{
+    display:flex;gap:14px;padding:4px 10px;background:var(--panel);
+    border-top:1px solid var(--line);color:var(--ink-dim);font-size:11px;
+  }
+
+  /* ---------- viewport ---------- */
+  #view{flex:1;position:relative;min-height:0;background:
+      radial-gradient(120% 120% at 50% 0%, #16202c 0%, #0b1016 70%)}
+  #view canvas{display:block;width:100%;height:100%}
+  #hud{
+    position:absolute;top:10px;left:12px;pointer-events:none;
+    font-size:11px;color:var(--ink-dim);text-shadow:0 1px 2px #000;
+  }
+  #hud b{color:var(--amber);font-weight:600}
+  #overlay{
+    position:absolute;inset:0;display:none;place-items:center;
+    background:rgba(9,13,18,.72);backdrop-filter:blur(2px);
+    font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--line-hot);
+  }
+  #overlay.on{display:grid}
+  .spin{
+    display:inline-block;width:9px;height:9px;margin-right:8px;vertical-align:-1px;
+    border:1px solid var(--line-hot);border-top-color:transparent;border-radius:50%;
+    animation:sp .7s linear infinite;
+  }
+  @keyframes sp{to{transform:rotate(360deg)}}
+  @media (prefers-reduced-motion:reduce){.spin{animation-duration:2s}}
+
+  /* ---------- console ---------- */
+  #console{
+    height:150px;display:flex;flex-direction:column;
+    background:var(--panel);border-top:1px solid var(--line);
+  }
+  #console.collapsed{height:29px}
+  #console.collapsed #log{display:none}
+  #log{flex:1;overflow:auto;padding:6px 10px;white-space:pre-wrap;word-break:break-word;font-size:12px}
+  #log .e{color:var(--red)}
+  #log .w{color:var(--amber)}
+  #log .ok{color:var(--green)}
+  #log .m{color:var(--ink-dim)}
+  #dropzone{
+    position:fixed;inset:0;display:none;place-items:center;z-index:20;
+    background:rgba(6,20,24,.8);border:2px dashed var(--line-hot);color:var(--line-hot);
+    letter-spacing:.14em;text-transform:uppercase;font-size:13px;
+  }
+  #dropzone.on{display:grid}
+  @media (max-width:760px){
+    main{flex-direction:column}
+    #left{width:auto;height:45%}
+    #split{width:auto;height:6px;cursor:row-resize}
+    #console{height:110px}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand"><b>OpenSCAD</b><i>WASM</i></div>
+
+  <button id="render" disabled><span id="renderLabel">Loading…</span> <span class="kbd">⌃⏎</span></button>
+
+  <select id="examples" title="Insert an example">
+    <option value="">Examples…</option>
+    <option value="basic">Basic shapes</option>
+    <option value="minkowski">Rounded box (minkowski)</option>
+    <option value="loop">For loop + rotate</option>
+    <option value="module">Parametric module</option>
+    <option value="linear">Extruded 2D profile</option>
+  </select>
+
+  <label class="file" tabindex="0">Open .scad<input type="file" id="openFile" accept=".scad,.txt"></label>
+
+  <div class="seg">
+    <button id="exStl" disabled>Save STL</button>
+    <button id="exOff" disabled>OFF</button>
+    <button id="exCsg" disabled>CSG</button>
+  </div>
+
+  <div class="grow"></div>
+
+  <div class="seg">
+    <button id="tWire" aria-pressed="false" title="Wireframe">Wire</button>
+    <button id="tAxes" aria-pressed="true" title="Axes">Axes</button>
+    <button id="tGrid" aria-pressed="true" title="Grid">Grid</button>
+    <button id="bFit" title="Frame the model">Fit</button>
+    <button id="bReset" title="Reset the view">Reset</button>
+  </div>
+
+  <label class="toggle" title="Render 900 ms after you stop typing">
+    <input type="checkbox" id="autoRender"> auto
+  </label>
+</header>
+
+<main>
+  <section id="left">
+    <div class="pane-head">
+      <span>model.scad</span>
+      <span class="grow"></span>
+      <span id="saveState">saved</span>
+    </div>
+    <div id="editorWrap">
+      <div id="gutter">1</div>
+      <textarea id="code" spellcheck="false" autocapitalize="off" autocomplete="off" wrap="off"></textarea>
+    </div>
+    <div id="statusbar">
+      <span id="pos">Ln 1, Col 1</span>
+      <span id="size">0 lines</span>
+      <span class="grow"></span>
+      <span>2-space indent</span>
+    </div>
+  </section>
+
+  <div id="split" role="separator" aria-orientation="vertical" tabindex="0" title="Drag to resize"></div>
+
+  <section id="right">
+    <div id="view">
+      <div id="hud"></div>
+      <div id="overlay"><div><span class="spin"></span><span id="overlayText">Rendering</span></div></div>
+    </div>
+    <div id="console" class="">
+      <div class="pane-head">
+        <span>Console</span>
+        <span class="grow"></span>
+        <button id="clearLog" style="padding:2px 8px">Clear</button>
+        <button id="toggleLog" style="padding:2px 8px">Hide</button>
+      </div>
+      <div id="log"></div>
+    </div>
+  </section>
+</main>
+
+<div id="dropzone">Drop a .scad file to open it</div>
+
+<script>
+/* =====================================================================
+   OpenSCAD Editor — single file.
+   Modules are pulled from the Notebook repo. Change BASE to './modules/'
+   if you serve this page from the repo root and want same-origin loads.
+   ===================================================================== */
+const BASE = 'https://raw.githubusercontent.com/ClarkeMKH/Notebook/refs/heads/main/modules/';
+const URLS = { three: BASE + 'three.js', scad: BASE + 'openscad.js', wasm: BASE + 'openscad.wasm' };
+
+const $ = id => document.getElementById(id);
+const el = {
+  code:$('code'), gutter:$('gutter'), log:$('log'), view:$('view'), hud:$('hud'),
+  render:$('render'), renderLabel:$('renderLabel'), overlay:$('overlay'), overlayText:$('overlayText'),
+  pos:$('pos'), size:$('size'), saveState:$('saveState')
+};
+
+/* ---------- console ---------- */
+function log(msg, cls){
+  const line = document.createElement('div');
+  if(cls) line.className = cls;
+  line.textContent = msg;
+  el.log.appendChild(line);
+  el.log.scrollTop = el.log.scrollHeight;
+}
+function classify(text){
+  const t = String(text);
+  if(/^\s*(ERROR|Parser error|TRACE)/i.test(t)) return 'e';
+  if(/^\s*WARNING/i.test(t)) return 'w';
+  return 'm';
+}
+$('clearLog').onclick = () => el.log.textContent = '';
+$('toggleLog').onclick = e => {
+  const c = $('console'); c.classList.toggle('collapsed');
+  e.target.textContent = c.classList.contains('collapsed') ? 'Show' : 'Hide';
+  onResize();
+};
+
+/* ---------- storage (degrades to memory if blocked) ---------- */
+const store = (() => {})();
+
+/* ---------- examples ---------- */
+const EXAMPLES = {
+  basic:
+`// Basic shapes
+$fn = 64;
+
+difference() {
+  cube([30, 30, 12], center = true);
+  cylinder(h = 20, r = 9, center = true);
+}
+
+translate([0, 0, 12])
+  sphere(r = 7);`,
+  minkowski:
+`// Rounded box via minkowski
+$fn = 32;
+r = 3;
+
+minkowski() {
+  cube([40, 24, 8], center = true);
+  sphere(r = r);
+}`,
+  loop:
+`// Radial array
+$fn = 48;
+
+for (i = [0 : 11]) {
+  rotate([0, 0, i * 30])
+    translate([20, 0, 0])
+      cylinder(h = 4 + i, r1 = 3, r2 = 1);
+}
+
+cylinder(h = 3, r = 14, center = false);`,
+  module:
+`// Parametric module
+$fn = 48;
+
+module bracket(len = 50, wide = 20, thick = 5, hole = 4) {
+  difference() {
+    union() {
+      cube([len, wide, thick]);
+      cube([thick, wide, len / 2]);
+    }
+    for (x = [10, len - 10])
+      translate([x, wide / 2, -1])
+        cylinder(h = thick + 2, d = hole);
+  }
+}
+
+bracket();`,
+  linear:
+`// Extruded 2D profile
+$fn = 64;
+
+linear_extrude(height = 10, twist = 45, scale = 0.7)
+  difference() {
+    square([30, 30], center = true);
+    circle(r = 9);
+  }`
+};
+$('examples').onchange = e => {
+  const k = e.target.value; e.target.value = '';
+  if(!k) return;
+  if(el.code.value.trim() && !confirm('Replace the current model with this example?')) return;
+  setCode(EXAMPLES[k]);
+  if(scadReady) doRender();
+};
+
+/* ---------- editor ---------- */
+function setCode(text){
+  el.code.value = text;
+  refreshEditor(); save();
+}
+function refreshEditor(){
+  const lines = el.code.value.split('\n');
+  let g = '';
+  for(let i = 1; i <= lines.length; i++) g += i + '\n';
+  el.gutter.textContent = g;
+  el.gutter.scrollTop = el.code.scrollTop;
+  el.size.textContent = lines.length + ' lines · ' + el.code.value.length + ' chars';
+  updateCaret();
+}
+function updateCaret(){
+  const upto = el.code.value.slice(0, el.code.selectionStart).split('\n');
+  el.pos.textContent = 'Ln ' + upto.length + ', Col ' + (upto[upto.length - 1].length + 1);
+}
+el.code.addEventListener('scroll', () => el.gutter.scrollTop = el.code.scrollTop);
+el.code.addEventListener('click', updateCaret);
+el.code.addEventListener('keyup', updateCaret);
+el.code.addEventListener('input', () => { refreshEditor(); queueSave(); queueAuto(); });
+
+const INDENT = '  '; // two spaces
+
+el.code.addEventListener('keydown', e => {
+  const ta = el.code, v = ta.value, s = ta.selectionStart, t = ta.selectionEnd;
+  const lineStart = v.lastIndexOf('\n', s - 1) + 1;
+
+  // Render shortcuts
+  if((e.key === 'Enter' && (e.ctrlKey || e.metaKey)) || e.key === 'F5'){
+    e.preventDefault(); doRender(); return;
+  }
+
+  if(e.key === 'Tab'){
+    e.preventDefault();
+    const multi = s !== t && v.slice(s, t).includes('\n');
+    if(multi || e.shiftKey){
+      const endLine = v.indexOf('\n', t) === -1 ? v.length : v.indexOf('\n', t);
+      const block = v.slice(lineStart, endLine);
+      const out = block.split('\n').map(l =>
+        e.shiftKey ? l.replace(/^ {1,2}/, '') : (l.length ? INDENT + l : l)
+      ).join('\n');
+      replaceRange(lineStart, endLine, out, lineStart, lineStart + out.length);
+    } else {
+      replaceRange(s, t, INDENT, s + INDENT.length, s + INDENT.length);
+    }
+    return;
+  }
+
+  if(e.key === 'Enter' && !e.shiftKey){
+    e.preventDefault();
+    const cur = v.slice(lineStart, s);
+    let pad = (cur.match(/^[ ]*/) || [''])[0];
+    const opensBlock = /[{([]\s*$/.test(cur);
+    if(opensBlock) pad += INDENT;
+    const closesNext = /^\s*[}\])]/.test(v.slice(t));
+    let ins = '\n' + pad;
+    let caret = s + ins.length;
+    if(opensBlock && closesNext) ins += '\n' + pad.slice(INDENT.length);
+    replaceRange(s, t, ins, caret, caret);
+    return;
+  }
+
+  // Type straight through a closing bracket this editor inserted
+  if(')]}'.includes(e.key) && s === t && v[s] === e.key){
+    e.preventDefault();
+    ta.setSelectionRange(s + 1, s + 1);
+    updateCaret();
+    return;
+  }
+
+  // De-indent a closing brace typed on its own line
+  if(e.key === '}' ){
+    const cur = v.slice(lineStart, s);
+    if(/^[ ]+$/.test(cur) && cur.length >= INDENT.length){
+      e.preventDefault();
+      replaceRange(lineStart, t, cur.slice(INDENT.length) + '}', 0, 0);
+      const p = lineStart + cur.length - INDENT.length + 1;
+      el.code.setSelectionRange(p, p);
+      refreshEditor(); queueSave(); queueAuto();
+      return;
+    }
+  }
+
+  // Auto-close pairs
+  const pairs = { '(':')', '[':']', '{':'}' };
+  if(pairs[e.key] && s === t){
+    e.preventDefault();
+    replaceRange(s, t, e.key + pairs[e.key], s + 1, s + 1);
+    return;
+  }
+});
+
+function replaceRange(from, to, text, selStart, selEnd){
+  const ta = el.code;
+  ta.setSelectionRange(from, to);
+  // execCommand keeps the native undo stack alive where supported
+  if(!document.execCommand || !document.execCommand('insertText', false, text)){
+    ta.setRangeText(text, from, to);
+  }
+  if(selStart != null) ta.setSelectionRange(selStart, selEnd ?? selStart);
+  refreshEditor(); queueSave(); queueAuto();
+}
+
+/* ---------- autosave ---------- */
+let saveTimer;
+function queueSave(){
+  el.saveState.textContent = 'editing…';
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(save, 400);
+}
+function save(){
+  store.set('scad.code', el.code.value);
+  el.saveState.textContent = 'saved';
+}
+
+/* ---------- auto-render ---------- */
+let autoTimer;
+function queueAuto(){
+  if(!$('autoRender').checked) return;
+  clearTimeout(autoTimer);
+  autoTimer = setTimeout(() => { if(scadReady && !busy) doRender(); }, 900);
+}
+
+/* ---------- open / drag & drop ---------- */
+$('openFile').onchange = e => {
+  const f = e.target.files[0]; if(f) readFile(f); e.target.value = '';
+};
+function readFile(f){
+  const r = new FileReader();
+  r.onload = () => { setCode(String(r.result)); log('Opened ' + f.name, 'ok'); if(scadReady) doRender(); };
+  r.readAsText(f);
+}
+let dragDepth = 0;
+addEventListener('dragenter', e => { e.preventDefault(); if(++dragDepth) $('dropzone').classList.add('on'); });
+addEventListener('dragover', e => e.preventDefault());
+addEventListener('dragleave', () => { if(--dragDepth <= 0){ dragDepth = 0; $('dropzone').classList.remove('on'); } });
+addEventListener('drop', e => {
+  e.preventDefault(); dragDepth = 0; $('dropzone').classList.remove('on');
+  const f = e.dataTransfer.files[0]; if(f) readFile(f);
+});
+
+/* =====================================================================
+   Module loading. raw.githubusercontent.com serves text/plain with
+   nosniff, so a plain <script src> would be refused. Both files are
+   fetched and re-served from a blob with a JavaScript MIME type:
+   three.js is a UMD build (classic script, sets window.THREE) while
+   openscad.js is an ES module, so each gets the right treatment.
+   ===================================================================== */
+async function fetchAsBlobUrl(url, label){
+  const res = await fetch(url);
+  if(!res.ok) throw new Error(label + ': HTTP ' + res.status);
+  const src = await res.text();
+  return URL.createObjectURL(new Blob([src], { type:'text/javascript' }));
+}
+async function loadClassicScript(url, label){
+  const blobUrl = await fetchAsBlobUrl(url, label);
+  await new Promise((ok, fail) => {
+    const s = document.createElement('script');
+    s.src = blobUrl;
+    s.onload = ok;
+    s.onerror = () => fail(new Error(label + ': failed to execute'));
+    document.head.appendChild(s);
+  });
+  URL.revokeObjectURL(blobUrl);
+}
+async function loadEsModule(url, label){
+  const blobUrl = await fetchAsBlobUrl(url, label);
+  const mod = await import(blobUrl);
+  URL.revokeObjectURL(blobUrl);
+  return mod;
+}
+
+let THREE, OpenSCAD = null, wasmBinary = null, scadReady = false, busy = false;
+
+(async function boot(){
+  try{
+    el.renderLabel.textContent = 'Loading three.js…';
+    log('Fetching three.js…', 'm');
+    await loadClassicScript(URLS.three, 'three.js');
+    THREE = window.THREE;
+    if(!THREE) throw new Error('three.js loaded but THREE is undefined');
+    log('three.js r' + THREE.REVISION + ' ready', 'ok');
+
+    initViewer();
+
+    el.renderLabel.textContent = 'Loading OpenSCAD…';
+    log('Fetching openscad.js…', 'm');
+    OpenSCAD = (await loadEsModule(URLS.scad, 'openscad.js')).default;
+    if(typeof OpenSCAD !== 'function') throw new Error('openscad.js has no default export');
+
+    log('Fetching openscad.wasm (~10 MB)…', 'm');
+    const wr = await fetch(URLS.wasm);
+    if(!wr.ok) throw new Error('openscad.wasm: HTTP ' + wr.status);
+    wasmBinary = await wr.arrayBuffer();
+    log('WASM ready (' + (wasmBinary.byteLength / 1048576).toFixed(1) + ' MB)', 'ok');
+
+    scadReady = true;
+    el.render.disabled = false;
+    el.renderLabel.textContent = 'Render';
+    $('exStl').disabled = $('exOff').disabled = $('exCsg').disabled = false;
+
+    const saved = store.get('scad.code');
+    setCode(saved != null && saved !== '' ? saved : EXAMPLES.basic);
+    log('Ctrl+Enter or F5 renders. Drag with the left mouse button to orbit, right button or Shift+drag to pan, wheel to zoom.', 'm');
+    doRender();
+  }catch(err){
+    el.renderLabel.textContent = 'Load failed';
+    log(String(err && err.message || err), 'e');
+    log('Check that the three files are reachable at ' + BASE, 'm');
+  }
+})();
+
+/* =====================================================================
+   OpenSCAD runs
+   ===================================================================== */
+async function runOpenSCAD(source, outName, extraArgs){
+  const out = [];
+  const instance = await OpenSCAD({
+    noInitialRun: true,
+    // Keeps the module from resolving a wasm URL: the bytes are already here.
+    locateFile: () => URLS.wasm,
+    // Each instance takes the buffer, so hand it a fresh copy every run.
+    wasmBinary: wasmBinary.slice(0),
+    print: t => out.push(t),
+    printErr: t => out.push(t)
+  });
+  instance.FS.writeFile('/model.scad', source);
+  let status = 0;
+  try{
+    instance.callMain(['/model.scad', '-o', '/' + outName].concat(extraArgs || []));
+  }catch(e){
+    status = (e && typeof e.status === 'number') ? e.status : 1;
+    if(e && e.message && !/ExitStatus|exit\(/i.test(e.message)) out.push(e.message);
+  }
+  let data = null;
+  try{ data = instance.FS.readFile('/' + outName); }catch(_){}
+  return { data, output: out, status };
+}
+
+const NOISE = /Could not initialize localization/i;
+function printOutput(lines){
+  lines.forEach(l => String(l).split('\n').forEach(x => {
+    if(x.trim() && !NOISE.test(x)) log(x, classify(x));
+  }));
+}
+const joined = out => out.join('\n');
+
+async function doRender(){
+  if(!scadReady || busy) return;
+  busy = true;
+  el.render.disabled = true;
+  el.overlayText.textContent = 'Rendering';
+  el.overlay.classList.add('on');
+  save();
+  await new Promise(r => requestAnimationFrame(() => setTimeout(r, 0))); // let the overlay paint
+
+  const t0 = performance.now();
+  try{
+    let res = await runOpenSCAD(el.code.value, 'out.stl', ['--export-format=binstl']);
+    // Older builds predate --export-format; retry plain if that was the complaint.
+    if(!res.data && /export-format|unknown option/i.test(joined(res.output))){
+      res = await runOpenSCAD(el.code.value, 'out.stl', []);
+    }
+    const ms = Math.round(performance.now() - t0);
+    printOutput(res.output);
+    if(!res.data || res.data.length === 0){
+      const text = joined(res.output);
+      if(/ERROR|Parser error/i.test(text)){
+        log('Render stopped after ' + ms + ' ms. Fix the errors above and render again.', 'e');
+      }else{
+        log('Nothing to show after ' + ms + ' ms — the scene has no 3D geometry. ' +
+            '2D shapes need extruding, or export them as DXF or SVG instead.', 'w');
+      }
+      setHud(null, ms, true);
+    }else{
+      const geom = parseSTL(res.data);
+      const tris = geom.getAttribute('position').count / 3;
+      showGeometry(geom);
+      log('Rendered ' + tris.toLocaleString() + ' triangles in ' + ms + ' ms', 'ok');
+      setHud(tris, ms, false);
+    }
+  }catch(err){
+    log(String(err && err.message || err), 'e');
+  }finally{
+    el.overlay.classList.remove('on');
+    el.render.disabled = false;
+    busy = false;
+  }
+}
+
+async function exportFile(ext, args){
+  if(!scadReady || busy) return;
+  busy = true; el.render.disabled = true;
+  el.overlayText.textContent = 'Exporting ' + ext.toUpperCase();
+  el.overlay.classList.add('on');
+  await new Promise(r => requestAnimationFrame(() => setTimeout(r, 0)));
+  try{
+    const res = await runOpenSCAD(el.code.value, 'out.' + ext, args || []);
+    printOutput(res.output);
+    if(!res.data || res.data.length === 0){ log('Export failed — nothing was written.', 'e'); return; }
+    const blob = new Blob([res.data], { type:'application/octet-stream' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'model.' + ext;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+    log('Saved model.' + ext + ' (' + (res.data.length / 1024).toFixed(1) + ' KB)', 'ok');
+  }finally{
+    el.overlay.classList.remove('on');
+    el.render.disabled = false; busy = false;
+  }
+}
+el.render.onclick = doRender;
+$('exStl').onclick = () => exportFile('stl', ['--export-format=binstl']);
+$('exOff').onclick = () => exportFile('off');
+$('exCsg').onclick = () => exportFile('csg');
+
+/* =====================================================================
+   STL → BufferGeometry (binary and ASCII)
+   ===================================================================== */
+function parseSTL(u8){
+  const dv = new DataView(u8.buffer, u8.byteOffset, u8.byteLength);
+  let binary = false;
+  if(u8.byteLength >= 84){
+    const n = dv.getUint32(80, true);
+    if(84 + n * 50 === u8.byteLength) binary = true;
+  }
+  const pos = [];
+  if(binary){
+    const n = dv.getUint32(80, true);
+    let o = 84;
+    for(let i = 0; i < n; i++){
+      o += 12; // skip the facet normal, we recompute for clean flat shading
+      for(let v = 0; v < 3; v++){
+        pos.push(dv.getFloat32(o, true), dv.getFloat32(o + 4, true), dv.getFloat32(o + 8, true));
+        o += 12;
+      }
+      o += 2; // attribute byte count
+    }
+  }else{
+    const text = new TextDecoder().decode(u8);
+    const re = /vertex\s+(-?[\d.eE+-]+)\s+(-?[\d.eE+-]+)\s+(-?[\d.eE+-]+)/g;
+    let m;
+    while((m = re.exec(text))) pos.push(+m[1], +m[2], +m[3]);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.computeVertexNormals();
+  g.computeBoundingSphere();
+  g.computeBoundingBox();
+  return g;
+}
+
+/* =====================================================================
+   Viewer: Z-up scene, hand-written orbit / pan / zoom
+   (the UMD three.js build ships no OrbitControls)
+   ===================================================================== */
+let renderer, scene, camera, mesh, grid, axes, material;
+let orbit = null; // filled in once THREE exists
+
+function initViewer(){
+  renderer = new THREE.WebGLRenderer({ antialias:true, alpha:true, preserveDrawingBuffer:true });
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  el.view.appendChild(renderer.domElement);
+
+  scene = new THREE.Scene();
+
+  camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100000);
+  camera.up.set(0, 0, 1); // OpenSCAD convention
+
+  orbit = { target:new THREE.Vector3(0,0,0), radius:160, theta:-Math.PI * 0.35, phi:Math.PI * 0.36 };
+
+  scene.add(new THREE.HemisphereLight(0xdfe9ff, 0x202830, 1.05));
+  const d1 = new THREE.DirectionalLight(0xffffff, 1.15); d1.position.set(1, -1.2, 1.6);
+  const d2 = new THREE.DirectionalLight(0x9fd6ff, 0.5);  d2.position.set(-1.4, 1, -0.6);
+  scene.add(d1, d2, new THREE.AmbientLight(0xffffff, 0.22));
+
+  material = new THREE.MeshStandardMaterial({
+    color:0xf9d72c, metalness:0.05, roughness:0.55,
+    flatShading:true, side:THREE.DoubleSide
+  });
+
+  buildGrid(200, 10);
+  axes = new THREE.AxesHelper(60);
+  axes.material.depthWrite = false;
+  scene.add(axes);
+
+  attachControls();
+  addEventListener('resize', onResize);
+  onResize();
+  (function loop(){ requestAnimationFrame(loop); applyCamera(); renderer.render(scene, camera); })();
+}
+
+function buildGrid(size, step){
+  if(grid){ scene.remove(grid); grid.traverse(o => o.material && o.material.dispose()); }
+  grid = new THREE.Group();
+  const major = new THREE.GridHelper(size, Math.max(2, Math.round(size / (step * 5))), 0x3d4c60, 0x3d4c60);
+  const minor = new THREE.GridHelper(size, Math.max(2, Math.round(size / step)), 0x222c38, 0x222c38);
+  [major, minor].forEach(g => {
+    g.rotation.x = -Math.PI / 2;           // GridHelper is XZ; lay it in XY
+    g.material.transparent = true;
+    g.material.opacity = g === major ? 0.85 : 0.55;
+    g.material.depthWrite = false;
+    grid.add(g);
+  });
+  grid.visible = $('tGrid').getAttribute('aria-pressed') === 'true';
+  scene.add(grid);
+}
+
+function applyCamera(){
+  const { target, radius, theta, phi } = orbit;
+  camera.position.set(
+    target.x + radius * Math.sin(phi) * Math.cos(theta),
+    target.y + radius * Math.sin(phi) * Math.sin(theta),
+    target.z + radius * Math.cos(phi)
+  );
+  camera.lookAt(target);
+  camera.near = Math.max(radius / 5000, 0.01);
+  camera.far  = radius * 100 + 1000;
+  camera.updateProjectionMatrix();
+}
+
+function onResize(){
+  if(!renderer) return;
+  const w = el.view.clientWidth, h = el.view.clientHeight;
+  if(w === 0 || h === 0) return;
+  renderer.setSize(w, h, false);
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+}
+
+function attachControls(){
+  const c = renderer.domElement;
+  let mode = 0, px = 0, py = 0; // 1 = orbit, 2 = pan
+  c.addEventListener('contextmenu', e => e.preventDefault());
+
+  c.addEventListener('pointerdown', e => {
+    c.setPointerCapture(e.pointerId);
+    mode = (e.button === 0 && !e.shiftKey) ? 1 : 2;
+    px = e.clientX; py = e.clientY;
+  });
+  c.addEventListener('pointerup', e => { mode = 0; c.releasePointerCapture(e.pointerId); });
+  c.addEventListener('pointermove', e => {
+    if(!mode) return;
+    const dx = e.clientX - px, dy = e.clientY - py;
+    px = e.clientX; py = e.clientY;
+    if(mode === 1){
+      orbit.theta -= dx * 0.006;
+      orbit.phi = Math.min(Math.PI - 0.001, Math.max(0.001, orbit.phi - dy * 0.006));
+    }else{
+      pan(dx, dy);
+    }
+  });
+  c.addEventListener('wheel', e => {
+    e.preventDefault();
+    zoom(Math.exp(e.deltaY * 0.0012));
+  }, { passive:false });
+
+  // touch: one finger orbits, two fingers pinch-zoom and pan
+  let touches = [], lastDist = 0;
+  c.addEventListener('touchstart', e => {
+    touches = [...e.touches];
+    if(touches.length === 2) lastDist = dist(touches[0], touches[1]);
+  }, { passive:false });
+  c.addEventListener('touchmove', e => {
+    e.preventDefault();
+    const t = [...e.touches];
+    if(t.length === 1 && touches.length === 1){
+      orbit.theta -= (t[0].clientX - touches[0].clientX) * 0.008;
+      orbit.phi = Math.min(Math.PI - 0.001, Math.max(0.001, orbit.phi - (t[0].clientY - touches[0].clientY) * 0.008));
+    }else if(t.length === 2 && touches.length === 2){
+      const d = dist(t[0], t[1]);
+      if(lastDist) zoom(lastDist / d);
+      lastDist = d;
+      const mx = (t[0].clientX + t[1].clientX) / 2 - (touches[0].clientX + touches[1].clientX) / 2;
+      const my = (t[0].clientY + t[1].clientY) / 2 - (touches[0].clientY + touches[1].clientY) / 2;
+      pan(mx, my);
+    }
+    touches = t;
+  }, { passive:false });
+  c.addEventListener('touchend', e => { touches = [...e.touches]; lastDist = 0; });
+  const dist = (a, b) => Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+}
+
+function zoom(f){ orbit.radius = Math.min(500000, Math.max(0.05, orbit.radius * f)); }
+function pan(dx, dy){
+  const h = Math.max(1, el.view.clientHeight);
+  const scale = 2 * orbit.radius * Math.tan((camera.fov * Math.PI / 180) / 2) / h;
+  const right = new THREE.Vector3().setFromMatrixColumn(camera.matrix, 0);
+  const up    = new THREE.Vector3().setFromMatrixColumn(camera.matrix, 1);
+  orbit.target.addScaledVector(right, -dx * scale).addScaledVector(up, dy * scale);
+}
+
+function showGeometry(geom){
+  if(mesh){ scene.remove(mesh); mesh.geometry.dispose(); }
+  mesh = new THREE.Mesh(geom, material);
+  scene.add(mesh);
+  const s = geom.boundingSphere;
+  const span = s ? s.radius * 2 : 100;
+  buildGrid(niceSize(span * 3), niceStep(span));
+  axes.scale.setScalar(Math.max(0.2, niceSize(span * 3) * 0.25 / 60));
+  if(!showGeometry.framed){ fit(); showGeometry.framed = true; }
+}
+function niceSize(v){ const p = Math.pow(10, Math.floor(Math.log10(Math.max(v, 1)))); return Math.max(20, Math.ceil(v / p) * p); }
+function niceStep(v){ const p = Math.pow(10, Math.floor(Math.log10(Math.max(v, 1))) - 1); return Math.max(0.1, p * 10); }
+
+function fit(){
+  if(!mesh || !mesh.geometry.boundingSphere) return;
+  const s = mesh.geometry.boundingSphere;
+  orbit.target.copy(s.center);
+  const r = Math.max(s.radius, 0.5);
+  orbit.radius = r / Math.sin((camera.fov * Math.PI / 180) / 2) * 1.25;
+}
+function resetView(){
+  orbit.theta = -Math.PI * 0.35; orbit.phi = Math.PI * 0.36;
+  orbit.target.set(0, 0, 0);
+  fit();
+}
+$('bFit').onclick = fit;
+$('bReset').onclick = resetView;
+
+function toggleBtn(id, fn){
+  const b = $(id);
+  b.onclick = () => {
+    const on = b.getAttribute('aria-pressed') !== 'true';
+    b.setAttribute('aria-pressed', String(on));
+    fn(on);
+  };
+}
+toggleBtn('tWire', on => { material.wireframe = on; });
+toggleBtn('tAxes', on => { axes.visible = on; });
+toggleBtn('tGrid', on => { grid.visible = on; });
+
+function setHud(tris, ms, failed){
+  el.hud.innerHTML = failed
+    ? '<span style="color:var(--red)">render failed — see console</span>'
+    : (tris != null ? '<b>' + tris.toLocaleString() + '</b> triangles · ' + ms + ' ms · Z up' : '');
+}
+
+/* ---------- splitter ---------- */
+(function(){
+  const sp = $('split'), left = $('left');
+  let dragging = false;
+  const vertical = () => innerWidth > 760;
+  sp.addEventListener('pointerdown', e => {
+    dragging = true; sp.classList.add('drag'); sp.setPointerCapture(e.pointerId);
+  });
+  sp.addEventListener('pointerup', e => {
+    dragging = false; sp.classList.remove('drag'); sp.releasePointerCapture(e.pointerId);
+  });
+  sp.addEventListener('pointermove', e => {
+    if(!dragging) return;
+    if(vertical()){
+      const w = Math.min(innerWidth - 240, Math.max(220, e.clientX));
+      left.style.width = w + 'px'; left.style.height = '';
+    }else{
+      const top = document.querySelector('header').offsetHeight;
+      const h = Math.min(innerHeight - 200, Math.max(120, e.clientY - top));
+      left.style.height = h + 'px'; left.style.width = 'auto';
+    }
+    onResize();
+  });
+  sp.addEventListener('keydown', e => {
+    if(!vertical()) return;
+    const step = e.shiftKey ? 40 : 12;
+    if(e.key === 'ArrowLeft'){ left.style.width = Math.max(220, left.offsetWidth - step) + 'px'; onResize(); }
+    if(e.key === 'ArrowRight'){ left.style.width = Math.min(innerWidth - 240, left.offsetWidth + step) + 'px'; onResize(); }
+  });
+})();
+
+/* global shortcuts even when the editor is not focused */
+addEventListener('keydown', e => {
+  if(e.target === el.code) return;
+  if(e.key === 'F5' || ((e.ctrlKey || e.metaKey) && e.key === 'Enter')){ e.preventDefault(); doRender(); }
+});
+addEventListener('beforeunload', save);
+</script>
+</body>
+</html>
