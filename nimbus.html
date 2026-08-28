@@ -1,0 +1,2833 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Nimbus — offline workspace</title>
+<style>
+:root{
+  --bg:#101219; --bg2:#161926; --panel:#1a1e2d; --panel2:#20253a;
+  --line:#2a3048; --line2:#39415f;
+  --fg:#ccd2e6; --fg2:#8d95b0; --fg3:#5f6885;
+  --accent:#8d93ff; --accent2:#a9adff; --amber:#f0b45c; --mint:#5fd0a8;
+  --red:#f0637a; --blue:#63a8f0;
+  --lh:20px; --fs:13px;
+  --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
+  --ui:system-ui,-apple-system,"Segoe UI",Inter,Roboto,sans-serif;
+  --r:7px;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;overflow:hidden}
+body{
+  background:var(--bg); color:var(--fg); font-family:var(--ui); font-size:13px;
+  -webkit-font-smoothing:antialiased; user-select:none;
+}
+button,input,select,textarea{font-family:inherit;font-size:inherit;color:inherit}
+button{background:none;border:0;cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+::-webkit-scrollbar{width:11px;height:11px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:#2f3650;border:3px solid transparent;background-clip:content-box;border-radius:99px}
+::-webkit-scrollbar-thumb:hover{background:#3f4970;background-clip:content-box}
+
+/* ─── shell ─────────────────────────────────────────── */
+#shell{display:flex;flex-direction:column;height:100%}
+#topbar{
+  height:38px;flex:0 0 38px;display:flex;align-items:center;gap:2px;
+  padding:0 8px 0 12px;background:var(--bg2);border-bottom:1px solid var(--line);
+}
+.brand{
+  font-weight:620;letter-spacing:.14em;text-transform:uppercase;font-size:10.5px;
+  color:var(--fg2);margin-right:14px;white-space:nowrap;
+}
+.brand b{color:var(--accent);font-weight:620}
+.seg{display:flex;background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:2px;gap:2px}
+.seg button{
+  padding:4px 11px;border-radius:5px;font-size:11.5px;color:var(--fg2);
+  letter-spacing:.02em;transition:background .12s,color .12s;
+}
+.seg button:hover{color:var(--fg)}
+.seg button.on{background:var(--panel2);color:var(--accent2);box-shadow:0 1px 0 #0004}
+.spacer{flex:1}
+.tbtn{
+  display:flex;align-items:center;gap:6px;padding:5px 9px;border-radius:6px;
+  color:var(--fg2);font-size:11.5px;
+}
+.tbtn:hover{background:var(--panel);color:var(--fg)}
+.tbtn svg{width:14px;height:14px}
+#fsBadge{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--fg3);padding-right:6px}
+#fsBadge b{color:var(--mint);font-weight:600}
+
+#stage{flex:1;min-height:0;position:relative}
+.view{position:absolute;inset:0;display:none}
+.view.on{display:flex}
+
+/* ─── edit view ─────────────────────────────────────── */
+#sidebar{
+  width:274px;flex:0 0 274px;min-width:150px;max-width:60%;
+  background:var(--bg2);border-right:1px solid var(--line);
+  display:flex;flex-direction:column;
+}
+.sbhead{
+  height:30px;flex:0 0 30px;display:flex;align-items:center;gap:4px;padding:0 6px 0 12px;
+  font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:var(--fg3);
+}
+.sbhead .spacer{flex:1}
+.ibtn{width:22px;height:22px;display:grid;place-items:center;border-radius:5px;color:var(--fg2)}
+.ibtn:hover{background:var(--panel2);color:var(--fg)}
+.ibtn svg{width:13px;height:13px}
+#tree{flex:1;overflow:auto;padding:2px 0 40px}
+#tree.dragover-root{background:#8d93ff0d;box-shadow:inset 0 0 0 1px var(--accent) }
+
+.row{
+  display:flex;align-items:center;gap:6px;height:23px;padding-right:8px;
+  cursor:default;position:relative;white-space:nowrap;
+}
+.row:hover{background:#ffffff08}
+.row.sel{background:#8d93ff26}
+.row.sel::before{content:"";position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--accent)}
+.row.cut{opacity:.45}
+.row.drop{background:#8d93ff2e;box-shadow:inset 0 0 0 1px var(--accent)}
+.row .tw{width:14px;flex:0 0 14px;display:grid;place-items:center;color:var(--fg3)}
+.row .tw svg{width:9px;height:9px;transition:transform .13s}
+.row.open .tw svg{transform:rotate(90deg)}
+.row .ic{width:15px;flex:0 0 15px;display:grid;place-items:center;color:var(--fg2)}
+.row .ic svg{width:14px;height:14px}
+.row .nm{overflow:hidden;text-overflow:ellipsis;font-size:12.5px}
+.row.app .ic{color:var(--amber)}
+.row.app .nm{color:#f6d9ab}
+.pill{
+  font-size:8.5px;letter-spacing:.11em;text-transform:uppercase;color:var(--amber);
+  border:1px solid #f0b45c55;border-radius:99px;padding:0 5px;line-height:13px;flex:0 0 auto;
+}
+.row .ren{
+  background:var(--bg);border:1px solid var(--accent);border-radius:3px;
+  padding:0 4px;height:19px;width:100%;min-width:40px;user-select:text;
+}
+.empty{padding:22px 16px;color:var(--fg3);font-size:12px;line-height:1.7}
+.empty b{color:var(--fg2);font-weight:500}
+
+#gutterDrag{width:4px;flex:0 0 4px;margin-left:-4px;cursor:col-resize;z-index:5;background:transparent}
+#gutterDrag:hover,#gutterDrag.act{background:var(--accent)}
+
+#main{flex:1;min-width:0;display:flex;flex-direction:column;background:var(--bg)}
+#tabs{
+  height:31px;flex:0 0 31px;display:flex;align-items:stretch;background:var(--bg2);
+  border-bottom:1px solid var(--line);overflow-x:auto;overflow-y:hidden;
+}
+#tabs::-webkit-scrollbar{height:0}
+.tab{
+  display:flex;align-items:center;gap:7px;padding:0 8px 0 11px;font-size:12px;
+  color:var(--fg2);border-right:1px solid var(--line);white-space:nowrap;cursor:default;
+  position:relative;max-width:220px;
+}
+.tab:hover{background:#ffffff06}
+.tab.on{background:var(--bg);color:var(--fg)}
+.tab.on::after{content:"";position:absolute;left:0;right:0;top:0;height:1px;background:var(--accent)}
+.tab .ic svg{width:13px;height:13px;display:block}
+.tab .tt{overflow:hidden;text-overflow:ellipsis}
+.tab .x{width:16px;height:16px;border-radius:4px;display:grid;place-items:center;opacity:.5;flex:0 0 16px}
+.tab .x:hover{background:#ffffff18;opacity:1}
+.tab .x svg{width:8px;height:8px}
+.tab.dirty .x::before{content:"";width:6px;height:6px;border-radius:99px;background:var(--accent);position:absolute}
+.tab.dirty:hover .x::before{display:none}
+#panes{flex:1;min-height:0;position:relative}
+.pane{position:absolute;inset:0;display:none;flex-direction:column}
+.pane.on{display:flex}
+
+#welcome{align-items:center;justify-content:center;text-align:center;color:var(--fg3);gap:6px}
+#welcome .big{font-size:26px;letter-spacing:.3em;text-transform:uppercase;color:#2c3450;font-weight:600}
+#welcome .kb{font-size:12px;line-height:2}
+kbd{
+  font-family:var(--mono);font-size:10.5px;background:var(--panel);border:1px solid var(--line2);
+  border-bottom-width:2px;border-radius:4px;padding:1px 5px;color:var(--fg2);
+}
+
+/* ─── editor ────────────────────────────────────────── */
+.ebar{
+  height:28px;flex:0 0 28px;display:flex;align-items:center;gap:8px;padding:0 8px 0 10px;
+  border-bottom:1px solid var(--line);background:var(--bg2);font-size:11px;color:var(--fg3);
+}
+.ebar .sep{width:1px;height:14px;background:var(--line)}
+.ebar button{padding:3px 7px;border-radius:5px;color:var(--fg2);font-size:11px}
+.ebar button:hover{background:var(--panel2);color:var(--fg)}
+.ebar button.on{color:var(--accent2);background:#8d93ff1f}
+.ebar .mono{font-family:var(--mono)}
+.ed{flex:1;min-height:0;display:flex;position:relative;overflow:hidden;background:var(--bg)}
+.ednums{
+  flex:0 0 auto;min-width:46px;padding:10px 10px 200px 8px;text-align:right;
+  font:var(--fs)/var(--lh) var(--mono);color:#414a6b;background:var(--bg);
+  border-right:1px solid var(--line);overflow:hidden;position:relative;z-index:2;
+}
+.ednums div{white-space:pre}
+.ednums div.cur{color:var(--accent2)}
+.edwrap{flex:1;min-width:0;position:relative;overflow:auto}
+.edhl,.edta{
+  margin:0;padding:10px 22px 200px 12px;font:var(--fs)/var(--lh) var(--mono);
+  white-space:pre;tab-size:4;border:0;letter-spacing:0;
+}
+.edhl{position:absolute;inset:0;pointer-events:none;z-index:1;color:var(--fg);min-height:100%}
+.edta{
+  position:relative;z-index:2;display:block;width:100%;min-height:100%;
+  background:transparent;color:transparent;caret-color:var(--accent2);resize:none;
+  overflow:hidden;outline:0;user-select:text;
+}
+.edta::selection{background:#8d93ff40}
+.wrapon .edhl,.wrapon .edta{white-space:pre-wrap;word-break:break-word}
+.cl{min-height:var(--lh)}
+.cl.cur{background:#ffffff07;box-shadow:inset 2px 0 0 #8d93ff3d}
+.edstat{
+  height:22px;flex:0 0 22px;display:flex;align-items:center;gap:14px;padding:0 12px;
+  border-top:1px solid var(--line);background:var(--bg2);font-size:10.5px;color:var(--fg3);
+  font-family:var(--mono);
+}
+.edstat .spacer{flex:1}
+.edstat b{color:var(--fg2);font-weight:500}
+
+/* syntax */
+.t-com{color:#5c6688;font-style:italic}
+.t-str{color:#8fd6a0}
+.t-num{color:#e5a56a}
+.t-kw{color:#a58bff}
+.t-kw2{color:#f0637a}
+.t-fn{color:#63b6f0}
+.t-op{color:#8d95b0}
+.t-tag{color:#f0637a}
+.t-attr{color:#e5a56a}
+.t-sel{color:#f0b45c}
+.t-prop{color:#63b6f0}
+.t-val{color:#8fd6a0}
+.t-at{color:#a58bff}
+.t-punc{color:#6f7899}
+
+/* find bar */
+.find{
+  position:absolute;top:6px;right:20px;z-index:9;display:none;gap:5px;align-items:center;
+  background:var(--panel);border:1px solid var(--line2);border-radius:var(--r);
+  padding:6px;box-shadow:0 10px 30px #0007;
+}
+.find.on{display:flex}
+.find input{
+  background:var(--bg);border:1px solid var(--line);border-radius:5px;padding:4px 7px;
+  width:132px;font-family:var(--mono);font-size:11.5px;user-select:text;
+}
+.find input:focus{border-color:var(--accent);outline:0}
+.find button{padding:4px 8px;border-radius:5px;background:var(--panel2);font-size:11px;color:var(--fg2)}
+.find button:hover{background:var(--line2);color:var(--fg)}
+.find .cnt{font-family:var(--mono);font-size:10.5px;color:var(--fg3);min-width:52px;text-align:center}
+
+/* ─── console / preview panes ───────────────────────── */
+.paneHead{
+  height:28px;flex:0 0 28px;display:flex;align-items:center;gap:8px;padding:0 8px 0 12px;
+  background:var(--bg2);border-bottom:1px solid var(--line);
+  font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--fg3);
+}
+.paneHead .spacer{flex:1}
+.paneHead button{padding:3px 8px;border-radius:5px;font-size:11px;letter-spacing:0;text-transform:none;color:var(--fg2)}
+.paneHead button:hover{background:var(--panel2);color:var(--fg)}
+.con{flex:1;overflow:auto;padding:6px 0;font-family:var(--mono);font-size:12px;user-select:text}
+.cline{padding:2px 12px 2px 26px;position:relative;white-space:pre-wrap;word-break:break-word;line-height:1.55;border-bottom:1px solid #ffffff07}
+.cline::before{position:absolute;left:10px;color:var(--fg3);font-size:10px;top:3px}
+.cline.log::before{content:"›"}
+.cline.err{color:#ffb3bf;background:#f0637a12}
+.cline.err::before{content:"✕";color:var(--red)}
+.cline.warn{color:#f5d6a8;background:#f0b45c10}
+.cline.warn::before{content:"!";color:var(--amber)}
+.cline.info{color:#a8d4f5}
+.cline.info::before{content:"i";color:var(--blue)}
+.cline.ret{color:var(--mint)}
+.cline.ret::before{content:"«";color:var(--mint)}
+.cline.sys{color:var(--fg3);font-style:italic}
+.conin{display:flex;align-items:center;gap:8px;border-top:1px solid var(--line);padding:0 12px;height:30px;flex:0 0 30px;background:var(--bg2)}
+.conin span{color:var(--accent);font-family:var(--mono)}
+.conin input{flex:1;background:none;border:0;outline:0;font-family:var(--mono);font-size:12px;user-select:text}
+.frame{flex:1;border:0;width:100%;background:#fff}
+
+/* ─── media editors ─────────────────────────────────── */
+.media{flex:1;min-height:0;display:flex;flex-direction:column;background:#0c0e15}
+.mstage{flex:1;min-height:0;display:grid;place-items:center;padding:18px;overflow:auto;position:relative}
+.mstage canvas,.mstage video,.mstage img{
+  max-width:100%;max-height:100%;
+  background:conic-gradient(#1b1f2e 25%,#161926 0 50%,#1b1f2e 0 75%,#161926 0) 0 0/18px 18px;
+  box-shadow:0 12px 44px #000a;border-radius:3px;
+}
+.mtools{
+  flex:0 0 auto;border-top:1px solid var(--line);background:var(--bg2);
+  padding:9px 12px;display:flex;flex-wrap:wrap;gap:14px;align-items:center;
+}
+.grp{display:flex;align-items:center;gap:6px}
+.grp>label{font-size:9.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--fg3)}
+.mbtn{padding:4px 9px;border-radius:5px;background:var(--panel);border:1px solid var(--line);font-size:11.5px;color:var(--fg2)}
+.mbtn:hover{background:var(--panel2);color:var(--fg);border-color:var(--line2)}
+.mbtn.pri{background:#8d93ff1f;border-color:#8d93ff66;color:var(--accent2)}
+.mbtn.pri:hover{background:#8d93ff33}
+input[type=range]{-webkit-appearance:none;appearance:none;height:3px;background:var(--line2);border-radius:9px;width:96px}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;border-radius:99px;background:var(--accent);cursor:pointer}
+input[type=range]::-moz-range-thumb{width:12px;height:12px;border:0;border-radius:99px;background:var(--accent);cursor:pointer}
+.num{font-family:var(--mono);font-size:10.5px;color:var(--fg3);min-width:34px}
+#wave{width:100%;height:118px;display:block;border-radius:4px;background:#0c0e15;cursor:crosshair}
+.wavewrap{padding:14px;position:relative}
+
+/* ─── context menu ──────────────────────────────────── */
+#ctx{
+  position:fixed;z-index:200;min-width:206px;background:var(--panel);
+  border:1px solid var(--line2);border-radius:9px;padding:5px;display:none;
+  box-shadow:0 18px 52px #000b,0 0 0 1px #0006;
+}
+#ctx.on{display:block}
+.mi{
+  display:flex;align-items:center;gap:9px;padding:6px 9px;border-radius:5px;
+  font-size:12.5px;color:var(--fg);width:100%;text-align:left;
+}
+.mi:hover{background:#8d93ff2b}
+.mi .ic{width:14px;flex:0 0 14px;color:var(--fg2);display:grid;place-items:center}
+.mi:hover .ic{color:var(--accent2)}
+.mi .ic svg{width:13.5px;height:13.5px}
+.mi .k{margin-left:auto;font-family:var(--mono);font-size:10px;color:var(--fg3)}
+.mi.danger{color:#ffa8b5}
+.mi.danger:hover{background:#f0637a26}
+.mi.danger .ic{color:var(--red)}
+.msep{height:1px;background:var(--line);margin:5px 7px}
+.mlbl{padding:6px 9px 3px;font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--fg3)}
+
+/* ─── modal ─────────────────────────────────────────── */
+#scrim{
+  position:fixed;inset:0;z-index:300;background:#05070ccc;backdrop-filter:blur(3px);
+  display:none;align-items:center;justify-content:center;padding:24px;
+}
+#scrim.on{display:flex}
+.modal{
+  width:min(560px,100%);max-height:86vh;overflow:auto;background:var(--panel);
+  border:1px solid var(--line2);border-radius:13px;box-shadow:0 30px 90px #000c;
+}
+.modal.wide{width:min(760px,100%)}
+.mhead{
+  padding:16px 20px 12px;border-bottom:1px solid var(--line);
+  display:flex;align-items:baseline;gap:10px;
+}
+.mhead h2{margin:0;font-size:14px;font-weight:600;letter-spacing:.01em}
+.mhead p{margin:0;font-size:11.5px;color:var(--fg3)}
+.mbody{padding:16px 20px}
+.mfoot{padding:12px 20px 16px;display:flex;gap:8px;justify-content:flex-end}
+.btn{padding:7px 14px;border-radius:7px;background:var(--panel2);border:1px solid var(--line2);font-size:12.5px}
+.btn:hover{background:var(--line2)}
+.btn.pri{background:var(--accent);border-color:var(--accent);color:#0d1020;font-weight:600}
+.btn.pri:hover{background:var(--accent2)}
+.btn.danger{background:#f0637a;border-color:#f0637a;color:#2a0710;font-weight:600}
+.field{display:flex;flex-direction:column;gap:6px;margin-bottom:14px}
+.field>label{font-size:10px;letter-spacing:.13em;text-transform:uppercase;color:var(--fg3)}
+.field input[type=text],.field input[type=password],.field select{
+  background:var(--bg);border:1px solid var(--line2);border-radius:7px;padding:8px 10px;
+  font-size:13px;user-select:text;width:100%;
+}
+.field input:focus,.field select:focus{border-color:var(--accent);outline:0}
+.hint{font-size:11px;color:var(--fg3);line-height:1.6}
+
+.srow{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--line)}
+.srow:last-child{border-bottom:0}
+.srow .txt{flex:1}
+.srow .txt b{display:block;font-size:12.5px;font-weight:500;margin-bottom:2px}
+.srow .txt span{font-size:11px;color:var(--fg3);line-height:1.5}
+.sw{width:38px;height:21px;border-radius:99px;background:var(--line2);position:relative;flex:0 0 38px;transition:background .15s}
+.sw::after{content:"";position:absolute;top:2.5px;left:2.5px;width:16px;height:16px;border-radius:99px;background:#c3cade;transition:transform .15s}
+.sw.on{background:var(--accent)}
+.sw.on::after{transform:translateX(17px);background:#fff}
+.stepper{display:flex;align-items:center;border:1px solid var(--line2);border-radius:7px;overflow:hidden}
+.stepper button{width:26px;height:26px;background:var(--panel2)}
+.stepper button:hover{background:var(--line2)}
+.stepper span{width:34px;text-align:center;font-family:var(--mono);font-size:12px}
+.sectlbl{font-size:9.5px;letter-spacing:.15em;text-transform:uppercase;color:var(--fg3);margin:18px 0 4px}
+.sectlbl:first-child{margin-top:0}
+
+.icongrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(62px,1fr));gap:7px}
+.icopt{
+  aspect-ratio:1;display:grid;place-items:center;border-radius:11px;background:var(--bg);
+  border:1px solid var(--line);color:var(--fg2);
+}
+.icopt:hover{border-color:var(--line2);color:var(--fg);background:var(--panel2)}
+.icopt.sel{border-color:var(--accent);background:#8d93ff1f;color:var(--accent2);box-shadow:0 0 0 1px var(--accent)}
+.icopt svg{width:25px;height:25px}
+
+/* ─── grid + taskbar views ──────────────────────────── */
+.deskbg{
+  position:absolute;inset:0;
+  background:
+    radial-gradient(1100px 620px at 78% -12%,#252b4a 0%,transparent 62%),
+    radial-gradient(820px 520px at 8% 108%,#1c2b3e 0%,transparent 60%),
+    linear-gradient(#0d0f17,#12141d);
+}
+.deskbg::after{
+  content:"";position:absolute;inset:0;opacity:.4;
+  background-image:linear-gradient(#ffffff07 1px,transparent 1px),linear-gradient(90deg,#ffffff07 1px,transparent 1px);
+  background-size:46px 46px;mask-image:radial-gradient(circle at 50% 42%,#000 5%,transparent 78%);
+}
+#gridView,#barView{flex-direction:column;position:relative}
+.deskhead{position:relative;padding:52px 46px 10px;pointer-events:none}
+.clock{font-size:52px;font-weight:200;letter-spacing:-.03em;font-variant-numeric:tabular-nums;color:#e6eafa;line-height:1}
+.cdate{font-size:12px;letter-spacing:.22em;text-transform:uppercase;color:#6f7899;margin-top:9px}
+.appwrap{position:relative;flex:1;min-height:0;overflow:auto;padding:16px 40px 46px}
+.appgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:10px;max-width:1080px}
+.appcell{
+  padding:16px 8px 13px;border-radius:15px;display:flex;flex-direction:column;
+  align-items:center;gap:11px;color:#c3cade;transition:background .13s,transform .13s;
+}
+.appcell:hover{background:#ffffff0e}
+.appcell:active{transform:scale(.955)}
+.appcell .box{
+  width:60px;height:60px;border-radius:16px;display:grid;place-items:center;
+  background:linear-gradient(160deg,#333c62,#222842);
+  border:1px solid #ffffff17;box-shadow:0 9px 22px #0007,inset 0 1px 0 #ffffff1f;
+}
+.appcell .box svg{width:30px;height:30px;color:#dbe0f5}
+.appcell .lb{font-size:11.5px;text-align:center;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.noapps{
+  position:relative;margin:6px 0 0;padding:30px;border:1px dashed var(--line2);border-radius:13px;
+  color:var(--fg3);font-size:12.5px;line-height:1.8;max-width:520px;
+}
+.noapps b{color:var(--fg2);font-weight:500}
+
+.dock{
+  position:relative;margin:0 auto 20px;display:flex;gap:7px;padding:9px;
+  background:#171b2ccc;backdrop-filter:blur(18px);border:1px solid #ffffff1a;
+  border-radius:19px;box-shadow:0 18px 46px #000a;max-width:calc(100% - 40px);overflow-x:auto;
+}
+.dock::-webkit-scrollbar{height:0}
+.dockcell{
+  width:52px;height:52px;flex:0 0 52px;border-radius:14px;display:grid;place-items:center;
+  background:linear-gradient(160deg,#333c62,#222842);border:1px solid #ffffff17;
+  transition:transform .14s;position:relative;
+}
+.dockcell:hover{transform:translateY(-7px)}
+.dockcell svg{width:26px;height:26px;color:#dbe0f5}
+.dockcell .tip{
+  position:absolute;bottom:calc(100% + 9px);left:50%;transform:translateX(-50%);
+  background:#0c0e15e8;border:1px solid var(--line2);padding:3px 8px;border-radius:6px;
+  font-size:11px;white-space:nowrap;opacity:0;pointer-events:none;transition:opacity .13s;
+}
+.dockcell:hover .tip{opacity:1}
+.barcenter{flex:1;min-height:0;display:grid;place-items:center;position:relative;padding:20px}
+
+/* ─── app runtime overlay ───────────────────────────── */
+#runner{position:fixed;inset:0;z-index:400;background:#0b0d14;display:none;flex-direction:column}
+#runner.on{display:flex}
+#runFrame{flex:1;border:0;width:100%;background:#fff}
+#runPill{
+  position:fixed;z-index:401;left:50%;transform:translateX(-50%);bottom:18px;
+  display:flex;align-items:center;gap:3px;padding:5px;border-radius:99px;
+  background:#151928e8;backdrop-filter:blur(16px);border:1px solid #ffffff20;
+  box-shadow:0 14px 40px #000b;transition:opacity .25s;
+}
+#runPill.dim{opacity:.16}
+#runPill:hover{opacity:1}
+#runPill button{padding:6px 13px;border-radius:99px;font-size:11.5px;color:#c3cade;display:flex;gap:6px;align-items:center}
+#runPill button:hover{background:#ffffff16}
+#runPill button svg{width:13px;height:13px}
+#runPill .nm{padding:0 12px 0 10px;font-size:11.5px;color:#8d95b0;border-right:1px solid #ffffff1f;margin-right:3px}
+#runPill .close:hover{background:#f0637a2e;color:#ffb3bf}
+
+/* ─── toasts ────────────────────────────────────────── */
+#toasts{position:fixed;right:16px;bottom:16px;z-index:500;display:flex;flex-direction:column;gap:8px;align-items:flex-end}
+.toast{
+  display:flex;align-items:center;gap:9px;padding:10px 14px;border-radius:9px;
+  background:var(--panel);border:1px solid var(--line2);font-size:12.5px;
+  box-shadow:0 12px 34px #000a;animation:tin .22s ease-out;max-width:400px;
+}
+.toast svg{width:14px;height:14px;flex:0 0 14px}
+.toast.ok svg{color:var(--mint)} .toast.err svg{color:var(--red)} .toast.info svg{color:var(--blue)}
+@keyframes tin{from{opacity:0;transform:translateY(9px) scale(.97)}}
+@media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+@media (max-width:720px){
+  #sidebar{width:210px;flex-basis:210px}
+  .deskhead{padding:32px 22px 8px} .clock{font-size:38px} .appwrap{padding:12px 18px 40px}
+}
+</style>
+</head>
+<body>
+<div id="shell">
+  <div id="topbar">
+    <div class="brand">Nim<b>bus</b></div>
+    <div class="seg" id="modeSeg">
+      <button data-mode="edit" class="on">Edit</button>
+      <button data-mode="grid">Grid</button>
+      <button data-mode="bar">Taskbar</button>
+    </div>
+    <div class="spacer"></div>
+    <div id="fsBadge"></div>
+    <button class="tbtn" id="btnSettings"><svg data-i="cog"></svg>Settings</button>
+  </div>
+
+  <div id="stage">
+    <!-- EDIT -->
+    <div class="view on" id="editView">
+      <div id="sidebar">
+        <div class="sbhead">
+          <span>Files</span><div class="spacer"></div>
+          <button class="ibtn" id="btnNewFile" title="New file"><svg data-i="filePlus"></svg></button>
+          <button class="ibtn" id="btnNewFolder" title="New folder"><svg data-i="folderPlus"></svg></button>
+          <button class="ibtn" id="btnUpload" title="Upload files"><svg data-i="upload"></svg></button>
+          <button class="ibtn" id="btnCollapse" title="Collapse all"><svg data-i="collapse"></svg></button>
+        </div>
+        <div id="tree"></div>
+      </div>
+      <div id="gutterDrag"></div>
+      <div id="main">
+        <div id="tabs"></div>
+        <div id="panes">
+          <div class="pane on" id="welcome">
+            <div class="big">Nimbus</div>
+            <div class="kb">
+              <kbd>Right click</kbd> anywhere in the file tree to start<br>
+              <kbd>Ctrl</kbd>+<kbd>S</kbd> save &nbsp;·&nbsp; <kbd>Ctrl</kbd>+<kbd>F</kbd> find &nbsp;·&nbsp; <kbd>Ctrl</kbd>+<kbd>,</kbd> settings
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- GRID -->
+    <div class="view" id="gridView">
+      <div class="deskbg"></div>
+      <div class="deskhead"><div class="clock" id="clock1"></div><div class="cdate" id="cdate1"></div></div>
+      <div class="appwrap"><div class="appgrid" id="appGrid"></div></div>
+    </div>
+
+    <!-- TASKBAR -->
+    <div class="view" id="barView">
+      <div class="deskbg"></div>
+      <div class="barcenter">
+        <div style="position:relative;text-align:center">
+          <div class="clock" id="clock2"></div>
+          <div class="cdate" id="cdate2"></div>
+        </div>
+      </div>
+      <div class="dock" id="appDock"></div>
+    </div>
+  </div>
+</div>
+
+<div id="runner"><iframe id="runFrame" allow="clipboard-write; fullscreen; camera; microphone"></iframe></div>
+<div id="runPill" style="display:none">
+  <span class="nm" id="runName"></span>
+  <button id="runReload"><svg data-i="reload"></svg>Reload</button>
+  <button class="close" id="runClose"><svg data-i="x"></svg>Close</button>
+</div>
+
+<div id="ctx"></div>
+<div id="scrim"><div class="modal" id="modal"></div></div>
+<div id="toasts"></div>
+<input type="file" id="fileInput" multiple hidden>
+<input type="file" id="dirInput" webkitdirectory directory multiple hidden>
+<script>
+/* ═══════════════════════════════════════════════════════════════
+   NIMBUS — a single-file offline workspace
+   1. icons  2. helpers  3. cache (IndexedDB + AES-GCM)
+   ═══════════════════════════════════════════════════════════════ */
+'use strict';
+
+/* ── 1. icon set ─────────────────────────────────────────────── */
+const P = {
+  chev:'M9 6l6 6-6 6',
+  folder:'M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z',
+  folderOpen:'M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2M3 7v10a2 2 0 002 2h14a2 2 0 002-2l1.2-7H4.6z',
+  file:'M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8zM14 3v5h5',
+  filePlus:'M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8zM14 3v5h5M12 12v5M9.5 14.5h5',
+  folderPlus:'M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2zM12 10v6M9 13h6',
+  upload:'M12 17V4M7 9l5-5 5 5M4 19h16',
+  download:'M12 4v13M7 12l5 5 5-5M4 20h16',
+  collapse:'M8 4h12M8 10h12M8 16h12M4 4v.01M4 10v.01M4 16v.01',
+  cog:'M12 15.5a3.5 3.5 0 100-7 3.5 3.5 0 000 7zM19.4 15a1.6 1.6 0 00.3 1.8l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.6 1.6 0 00-2.7 1.1V21a2 2 0 11-4 0v-.1A1.6 1.6 0 006.6 19.7l-.1.1a2 2 0 11-2.8-2.8l.1-.1A1.6 1.6 0 003 14.2H3a2 2 0 010-4h.1A1.6 1.6 0 004.3 7.6l-.1-.1a2 2 0 112.8-2.8l.1.1A1.6 1.6 0 009.8 3.7V3a2 2 0 014 0v.1a1.6 1.6 0 002.7 1.1l.1-.1a2 2 0 112.8 2.8l-.1.1a1.6 1.6 0 001.1 2.7H21a2 2 0 010 4h-.1a1.6 1.6 0 00-1.5 1.3z',
+  x:'M5 5l14 14M19 5L5 19',
+  play:'M6 4l14 8-14 8z',
+  eye:'M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7zM12 15a3 3 0 100-6 3 3 0 000 6z',
+  trash:'M4 6h16M9 6V4h6v2M6 6l1 14h10l1-14M10 10v7M14 10v7',
+  pencil:'M4 20h4L20 8a2.8 2.8 0 10-4-4L4 16z',
+  copy:'M9 9h10v10H9zM5 15V5h10',
+  clip:'M15 5H8a3 3 0 00-3 3v11h14V9z M15 5l4 4',
+  zip:'M6 3h12v18H6zM10 3v3M13 6v3M10 9v3M13 12v3M10 15h3v4h-3z',
+  cube:'M12 2l9 5v10l-9 5-9-5V7zM12 12l9-5M12 12v10M12 12L3 7',
+  reload:'M20 11a8 8 0 10-2.3 6.3M20 5v6h-6',
+  ok:'M4 12l5 5L20 6',
+  alert:'M12 3l10 18H2zM12 9v5M12 18v.01',
+  info:'M12 22a10 10 0 100-20 10 10 0 000 20zM12 11v6M12 7v.01',
+  img:'M3 5h18v14H3zM3 16l5-5 4 4 3-3 6 6',
+  music:'M9 18V5l11-2v13M9 18a3 3 0 11-6 0 3 3 0 016 0zm11-2a3 3 0 11-6 0 3 3 0 016 0z',
+  video:'M3 6h12v12H3zM15 10l6-4v12l-6-4z',
+  code:'M8 6l-6 6 6 6M16 6l6 6-6 6',
+  term:'M4 5h16v14H4zM7 9l3 3-3 3M13 15h4',
+  search:'M11 19a8 8 0 100-16 8 8 0 000 16zM21 21l-4.3-4.3',
+  swap:'M7 4v13M4 7l3-3 3 3M17 20V7M14 17l3 3 3-3',
+  key:'M15 9a4 4 0 10-3.5 4L13 14.5V17h2.5v2.5H18l3-3-3-3z',
+  brush:'M4 20s1-5 4-5 3 2 5 2 4-3 4-6a5 5 0 00-9-3L4 15z',
+  scissors:'M6 6l12 12M18 6L6 18M8 6a2 2 0 11-4 0 2 2 0 014 0zm0 12a2 2 0 11-4 0 2 2 0 014 0z',
+  rotate:'M4 12a8 8 0 1114 5M4 12V6M4 12h6',
+};
+/* app icon palette */
+const APPICONS = {
+  grid:'M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z',
+  rocket:'M12 2s5 3 5 9c0 4-2 6-2 6H9s-2-2-2-6c0-6 5-9 5-9zM9 17l-2 5 3-1.5M15 17l2 5-3-1.5M12 10v.01',
+  chart:'M4 20V9M10 20V4M16 20v-7M22 20H2',
+  chat:'M21 12a8 8 0 01-11.6 7.1L3 21l1.9-6.4A8 8 0 1121 12z',
+  camera:'M3 8h4l2-3h6l2 3h4v12H3zM12 17a4 4 0 100-8 4 4 0 000 8z',
+  clock:'M12 22a10 10 0 100-20 10 10 0 000 20zM12 6v6l4 2',
+  calc:'M5 3h14v18H5zM8 7h8M8 11h2M12 11h2M16 11h2M8 15h2M12 15h2M16 15v4M8 19h6',
+  book:'M4 4h11a4 4 0 014 4v12H8a4 4 0 01-4-4zM8 20a4 4 0 01-4-4',
+  mail:'M3 6h18v12H3zM3 7l9 6 9-6',
+  globe:'M12 22a10 10 0 100-20 10 10 0 000 20zM2 12h20M12 2a14 14 0 000 20 14 14 0 000-20z',
+  heart:'M12 20S3 14 3 8.5A4.5 4.5 0 0112 6a4.5 4.5 0 019 2.5C21 14 12 20 12 20z',
+  star:'M12 3l2.7 5.8 6.3.8-4.6 4.4 1.2 6.2L12 17.2 6.4 20.2l1.2-6.2L3 9.6l6.3-.8z',
+  bolt:'M13 2L4 14h7l-1 8 9-12h-7z',
+  flame:'M12 22c4 0 6-2.6 6-6 0-4.5-6-14-6-14S6 11.5 6 16c0 3.4 2 6 6 6zM12 18a2.5 2.5 0 002.5-2.5c0-2-2.5-5-2.5-5s-2.5 3-2.5 5A2.5 2.5 0 0012 18z',
+  leaf:'M4 20C4 10 11 4 21 4c0 10-6 16-13 16H4zM4 20l9-9',
+  gamepad:'M7 8h10a5 5 0 010 10c-2 0-2.5-2-5-2s-3 2-5 2A5 5 0 017 8zM9 12h.01M12 12h.01M9 15h.01M17 12h.01M15 14h.01',
+  paint:'M4 20s1-5 4-5 3 2 5 2 4-3 4-6a5 5 0 00-9-3L4 15z',
+  note:'M6 3h9l4 4v14H6zM15 3v4h4M9 12h7M9 16h5',
+  db:'M12 8c4.4 0 8-1.3 8-3s-3.6-3-8-3-8 1.3-8 3 3.6 3 8 3zM4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3',
+  shield:'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z',
+  lock:'M5 11h14v10H5zM8 11V7a4 4 0 018 0v4',
+  cpu:'M7 7h10v10H7zM9 2v3M15 2v3M9 19v3M15 19v3M2 9h3M2 15h3M19 9h3M19 15h3',
+  cloud:'M7 19a4.5 4.5 0 01-.4-9A6 6 0 0118 9.5a4 4 0 01.5 9.5z',
+  map:'M9 3L3 6v15l6-3 6 3 6-3V3l-6 3zM9 3v15M15 6v15',
+  radio:'M12 15a3 3 0 100-6 3 3 0 000 6zM6.5 6.5a8 8 0 000 11M17.5 6.5a8 8 0 010 11M3.5 3.5a12 12 0 000 17M20.5 3.5a12 12 0 010 17',
+  wrench:'M15 3a6 6 0 00-5 9L3 19l2 2 7-7a6 6 0 105-11z',
+  layers:'M12 2l9 5-9 5-9-5zM3 12l9 5 9-5M3 17l9 5 9-5',
+  puzzle:'M10 3h4v2.5a2 2 0 104 0V8h2.5a2 2 0 100 4H21v6h-6v-2.5a2 2 0 10-4 0V18H5v-6H2.5a2 2 0 100-4H5V3z',
+  compass:'M12 22a10 10 0 100-20 10 10 0 000 20zM15.5 8.5l-2 5-5 2 2-5z',
+};
+function svg(d,cls){return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"${cls?` class="${cls}"`:''}><path d="${d}"/></svg>`;}
+function ico(n){return svg(P[n]||P.file);}
+function appIco(n){return svg(APPICONS[n]||APPICONS.grid);}
+// hydrate <svg data-i="...">
+function hydrateIcons(root){
+  (root||document).querySelectorAll('svg[data-i]').forEach(el=>{
+    const d=P[el.dataset.i]; if(!d) return;
+    el.setAttribute('viewBox','0 0 24 24'); el.setAttribute('fill','none');
+    el.setAttribute('stroke','currentColor'); el.setAttribute('stroke-width','1.7');
+    el.setAttribute('stroke-linecap','round'); el.setAttribute('stroke-linejoin','round');
+    el.innerHTML=`<path d="${d}"/>`; el.removeAttribute('data-i');
+  });
+}
+
+/* ── 2. helpers ──────────────────────────────────────────────── */
+const $=(s,r)=>(r||document).querySelector(s);
+const $$=(s,r)=>[...(r||document).querySelectorAll(s)];
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
+const esc=s=>s.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+const escAttr=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const ext=n=>{const i=n.lastIndexOf('.');return i<1?'':n.slice(i+1).toLowerCase();};
+const bytes=n=>{if(n<1024)return n+' B';if(n<1048576)return (n/1024).toFixed(1)+' KB';if(n<1073741824)return (n/1048576).toFixed(1)+' MB';return (n/1073741824).toFixed(2)+' GB';};
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+
+const TEXT_EXT='txt md markdown js mjs cjs jsx ts tsx json jsonc html htm xml svg css scss less csv tsv log yml yaml ini cfg conf env sh bash py rb go rs c h cpp java php sql toml gitignore srt vtt'.split(' ');
+const IMG_EXT='png jpg jpeg gif webp bmp avif ico'.split(' ');
+const AUD_EXT='mp3 wav ogg m4a flac aac opus weba'.split(' ');
+const VID_EXT='mp4 webm ogv mov m4v mkv'.split(' ');
+function kindOf(name){
+  const e=ext(name);
+  if(IMG_EXT.includes(e))return e==='svg'?'text':'image';
+  if(AUD_EXT.includes(e))return 'audio';
+  if(VID_EXT.includes(e))return 'video';
+  if(e==='pdf')return 'pdf';
+  if(TEXT_EXT.includes(e)||!e)return 'text';
+  return 'bin';
+}
+function langOf(name){
+  const e=ext(name);
+  if(['js','mjs','cjs','jsx','ts','tsx','json','jsonc'].includes(e))return 'js';
+  if(['css','scss','less'].includes(e))return 'css';
+  if(['html','htm','xml','svg','vue'].includes(e))return 'html';
+  return 'plain';
+}
+function mimeOf(name){
+  const e=ext(name),m={
+    html:'text/html',htm:'text/html',css:'text/css',js:'text/javascript',mjs:'text/javascript',
+    json:'application/json',svg:'image/svg+xml',png:'image/png',jpg:'image/jpeg',jpeg:'image/jpeg',
+    gif:'image/gif',webp:'image/webp',avif:'image/avif',ico:'image/x-icon',bmp:'image/bmp',
+    mp3:'audio/mpeg',wav:'audio/wav',ogg:'audio/ogg',m4a:'audio/mp4',flac:'audio/flac',opus:'audio/opus',
+    mp4:'video/mp4',webm:'video/webm',mov:'video/quicktime',
+    txt:'text/plain',md:'text/markdown',csv:'text/csv',xml:'application/xml',pdf:'application/pdf',
+    wasm:'application/wasm',ttf:'font/ttf',woff:'font/woff',woff2:'font/woff2',
+  };
+  return m[e]||'application/octet-stream';
+}
+
+function toast(msg,type='ok',ms=2600){
+  const el=document.createElement('div');
+  el.className='toast '+type;
+  el.innerHTML=svg(P[type==='ok'?'ok':type==='err'?'alert':'info'])+`<span>${escAttr(msg)}</span>`;
+  $('#toasts').appendChild(el);
+  setTimeout(()=>{el.style.transition='opacity .25s,transform .25s';el.style.opacity='0';el.style.transform='translateY(6px)';setTimeout(()=>el.remove(),260);},ms);
+}
+
+/* ── 3. cache: IndexedDB + optional AES-GCM ──────────────────── */
+const DB_NAME='nimbus', STORE='kv';
+let _dbp=null;
+function db(){
+  if(_dbp) return _dbp;
+  _dbp=new Promise((res,rej)=>{
+    const r=indexedDB.open(DB_NAME,1);
+    r.onupgradeneeded=()=>{if(!r.result.objectStoreNames.contains(STORE))r.result.createObjectStore(STORE);};
+    r.onsuccess=()=>res(r.result);
+    r.onerror=()=>rej(r.error);
+  });
+  return _dbp;
+}
+function tx(mode,fn){
+  return db().then(d=>new Promise((res,rej)=>{
+    const t=d.transaction(STORE,mode), s=t.objectStore(STORE);
+    let out; const rq=fn(s);
+    if(rq) rq.onsuccess=()=>{out=rq.result;};
+    t.oncomplete=()=>res(out); t.onerror=()=>rej(t.error); t.onabort=()=>rej(t.error);
+  }));
+}
+
+const _keyCache=new Map();
+async function deriveKey(pass,salt){
+  const ck=pass+':'+[...salt].join(',');
+  if(_keyCache.has(ck)) return _keyCache.get(ck);
+  const base=await crypto.subtle.importKey('raw',new TextEncoder().encode(pass),'PBKDF2',false,['deriveKey']);
+  const key=await crypto.subtle.deriveKey(
+    {name:'PBKDF2',salt,iterations:210000,hash:'SHA-256'},
+    base,{name:'AES-GCM',length:256},false,['encrypt','decrypt']);
+  _keyCache.set(ck,key); return key;
+}
+/* serialise anything (incl. Blob) to bytes for encryption */
+async function pack(v){
+  if(v instanceof Blob){
+    const b=new Uint8Array(await v.arrayBuffer());
+    const head=new TextEncoder().encode(JSON.stringify({__blob:1,type:v.type}));
+    const out=new Uint8Array(4+head.length+b.length); const dv=new DataView(out.buffer);
+    dv.setUint32(0,head.length); out.set(head,4); out.set(b,4+head.length); return out;
+  }
+  const head=new TextEncoder().encode(JSON.stringify({__json:1}));
+  const body=new TextEncoder().encode(JSON.stringify(v===undefined?null:v));
+  const out=new Uint8Array(4+head.length+body.length); const dv=new DataView(out.buffer);
+  dv.setUint32(0,head.length); out.set(head,4); out.set(body,4+head.length); return out;
+}
+function unpack(u8){
+  const dv=new DataView(u8.buffer,u8.byteOffset,u8.byteLength);
+  const hl=dv.getUint32(0);
+  const head=JSON.parse(new TextDecoder().decode(u8.subarray(4,4+hl)));
+  const body=u8.subarray(4+hl);
+  if(head.__blob) return new Blob([body],{type:head.type});
+  return JSON.parse(new TextDecoder().decode(body));
+}
+
+/**
+ * saveToCache(key, value [, encryptionKey])
+ * Stores anything structured-cloneable — objects, arrays, strings, Blobs, Files.
+ * Pass a passphrase to encrypt at rest with AES-256-GCM (PBKDF2, 210k rounds).
+ * Resolves true on success, false on failure.
+ */
+async function saveToCache(key,value,encryptionKey){
+  try{
+    let payload=value;
+    if(!encryptionKey&&value instanceof Blob){
+      payload={__b:1,type:value.type,buf:await value.arrayBuffer()};
+    }
+    if(encryptionKey){
+      const salt=crypto.getRandomValues(new Uint8Array(16));
+      const iv=crypto.getRandomValues(new Uint8Array(12));
+      const k=await deriveKey(encryptionKey,salt);
+      const data=await crypto.subtle.encrypt({name:'AES-GCM',iv},k,await pack(value));
+      payload={__enc:1,v:1,salt,iv,data};
+    }
+    await tx('readwrite',s=>s.put(payload,key));
+    return true;
+  }catch(e){ console.warn('[cache] save failed',key,e); return false; }
+}
+/**
+ * loadFromCache(key [, encryptionKey])
+ * Returns the stored value, or null if the key is missing, the data is
+ * encrypted and no key was given, or the passphrase is wrong.
+ */
+async function loadFromCache(key,encryptionKey){
+  try{
+    const raw=await tx('readonly',s=>s.get(key));
+    if(raw===undefined||raw===null) return null;
+    if(raw&&raw.__enc){
+      if(!encryptionKey) return null;
+      const k=await deriveKey(encryptionKey,new Uint8Array(raw.salt));
+      const plain=await crypto.subtle.decrypt({name:'AES-GCM',iv:new Uint8Array(raw.iv)},k,raw.data);
+      return unpack(new Uint8Array(plain));
+    }
+    if(encryptionKey) return null;      // asked for encrypted, found plaintext
+    if(raw&&raw.__b) return new Blob([raw.buf],{type:raw.type||''});
+    return raw;
+  }catch(e){ return null; }             // wrong key / corrupt / missing
+}
+async function removeFromCache(key){ try{ await tx('readwrite',s=>s.delete(key)); return true;}catch(e){return false;} }
+async function listCacheKeys(prefix=''){
+  try{ const all=await tx('readonly',s=>s.getAllKeys()); return all.filter(k=>String(k).startsWith(prefix)); }
+  catch(e){ return []; }
+}
+Object.assign(window,{saveToCache,loadFromCache,removeFromCache,listCacheKeys});
+
+/* ═══════════════════════════════════════════════════════════════
+   4. virtual filesystem  5. settings
+   ═══════════════════════════════════════════════════════════════ */
+
+const VFS_KEY='vfs.tree.v1';
+const fileKey=id=>'vfs.file.'+id;
+
+/* node: {id,name,type:'folder'|'file',parent,children[],isApp,icon,mime,size,mtime,open} */
+let TREE={root:{id:'root',name:'Workspace',type:'folder',parent:null,children:[],open:true}};
+let SET={
+  mode:'edit', tabSize:2, useTabs:false, spellcheck:false, wrap:false,
+  fontSize:13, lineNumbers:true, autoClose:true, autoIndent:true, highlight:true,
+  sidebarW:274, sortFolders:true, trailingNewline:true,
+};
+
+const node=id=>TREE[id];
+function children(id){ const n=TREE[id]; if(!n||!n.children) return []; return n.children.map(c=>TREE[c]).filter(Boolean); }
+function pathOf(id){
+  const parts=[]; let n=TREE[id];
+  while(n&&n.id!=='root'){ parts.unshift(n.name); n=TREE[n.parent]; }
+  return '/'+parts.join('/');
+}
+function isDesc(id,maybeAncestor){
+  let n=TREE[id];
+  while(n){ if(n.id===maybeAncestor) return true; n=TREE[n.parent]; }
+  return false;
+}
+function uniqueName(parentId,name){
+  const taken=new Set(children(parentId).map(c=>c.name.toLowerCase()));
+  if(!taken.has(name.toLowerCase())) return name;
+  const dot=name.lastIndexOf('.'); const base=dot>0?name.slice(0,dot):name; const e=dot>0?name.slice(dot):'';
+  let i=2; while(taken.has((base+' '+i+e).toLowerCase())) i++;
+  return base+' '+i+e;
+}
+function sortChildren(id){
+  const n=TREE[id]; if(!n||!n.children) return;
+  n.children.sort((a,b)=>{
+    const A=TREE[a],B=TREE[b]; if(!A||!B) return 0;
+    if(SET.sortFolders&&A.type!==B.type) return A.type==='folder'?-1:1;
+    return A.name.localeCompare(B.name,undefined,{numeric:true,sensitivity:'base'});
+  });
+}
+
+let saveTimer=null;
+function persistTree(now){
+  clearTimeout(saveTimer);
+  const go=()=>saveToCache(VFS_KEY,JSON.parse(JSON.stringify(TREE)));
+  if(now) return go();
+  saveTimer=setTimeout(go,220);
+}
+function persistSettings(){ saveToCache('settings.v1',SET); }
+
+/* file content — always stored as a Blob */
+async function readBlob(id){
+  const b=await loadFromCache(fileKey(id));
+  if(b instanceof Blob) return b;
+  if(b==null) return new Blob([]);
+  if(b instanceof ArrayBuffer||ArrayBuffer.isView(b)) return new Blob([b]);
+  if(typeof b==='string') return new Blob([b]);
+  if(b.__b) return new Blob([b.buf],{type:b.type||''});
+  return new Blob([JSON.stringify(b)]);
+}
+async function readText(id){ return (await readBlob(id)).text(); }
+async function writeBlob(id,blob){
+  await saveToCache(fileKey(id),blob);
+  const n=TREE[id]; if(n){ n.size=blob.size; n.mtime=Date.now(); persistTree(); }
+}
+async function writeText(id,text){ const n=TREE[id]; await writeBlob(id,new Blob([text],{type:mimeOf(n?n.name:'a.txt')})); }
+
+function mkNode(parentId,name,type,extra={}){
+  const id=uid();
+  const n={id,name:uniqueName(parentId,name),type,parent:parentId,mtime:Date.now(),...extra};
+  if(type==='folder'){ n.children=[]; n.open=false; } else { n.mime=mimeOf(name); n.size=0; }
+  TREE[id]=n; TREE[parentId].children.push(id); sortChildren(parentId);
+  TREE[parentId].open=true;
+  return n;
+}
+async function delNode(id){
+  const n=TREE[id]; if(!n||id==='root') return;
+  const stack=[id], all=[];
+  while(stack.length){ const c=stack.pop(); all.push(c); const k=TREE[c]; if(k&&k.children) stack.push(...k.children); }
+  for(const c of all){ if(TREE[c]&&TREE[c].type==='file') await removeFromCache(fileKey(c)); delete TREE[c]; }
+  const p=TREE[n.parent]; if(p) p.children=p.children.filter(c=>c!==id);
+  all.forEach(c=>closeTab(c));
+  persistTree(true);
+}
+function moveNode(id,newParent){
+  const n=TREE[id]; if(!n||id==='root') return false;
+  if(isDesc(newParent,id)) return false;
+  if(n.parent===newParent) return false;
+  const p=TREE[n.parent]; if(p) p.children=p.children.filter(c=>c!==id);
+  n.name=uniqueName(newParent,n.name);
+  n.parent=newParent; TREE[newParent].children.push(id);
+  sortChildren(newParent); TREE[newParent].open=true;
+  persistTree(); return true;
+}
+async function cloneNode(id,newParent){
+  const src=TREE[id];
+  const copy=mkNode(newParent,src.name,src.type,{isApp:src.isApp,icon:src.icon});
+  if(src.type==='file'){ await writeBlob(copy.id,await readBlob(id)); }
+  else { for(const c of src.children) await cloneNode(c,copy.id); }
+  return copy;
+}
+
+/* find a descendant by path relative to a folder */
+function resolvePath(rootId,p){
+  const parts=String(p).replace(/^\.?\//,'').split('/').filter(x=>x&&x!=='.');
+  let cur=rootId;
+  for(const part of parts){
+    if(part==='..'){ cur=TREE[cur].parent||cur; continue; }
+    const hit=children(cur).find(c=>c.name===part)||children(cur).find(c=>c.name.toLowerCase()===part.toLowerCase());
+    if(!hit) return null; cur=hit.id;
+  }
+  return TREE[cur];
+}
+function collectFiles(folderId,prefix=''){
+  const out=[];
+  for(const c of children(folderId)){
+    if(c.type==='file') out.push({node:c,path:prefix+c.name});
+    else out.push(...collectFiles(c.id,prefix+c.name+'/'));
+  }
+  return out;
+}
+function listApps(){
+  const out=[];
+  for(const k in TREE){ const n=TREE[k]; if(n.type==='folder'&&n.isApp) out.push(n); }
+  return out.sort((a,b)=>a.name.localeCompare(b.name));
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   6. tree UI  7. context menus
+   ═══════════════════════════════════════════════════════════════ */
+
+let selected=null, clipboard=null, renaming=null;
+const treeEl=$('#tree');
+
+function fileGlyph(n){
+  if(n.type==='folder') return n.isApp?appIco(n.icon||'grid'):ico(n.open?'folderOpen':'folder');
+  const k=kindOf(n.name);
+  if(k==='image')return ico('img'); if(k==='audio')return ico('music'); if(k==='video')return ico('video');
+  if(langOf(n.name)!=='plain')return ico('code');
+  return ico('file');
+}
+function renderTree(){
+  const scroll=treeEl.scrollTop;
+  treeEl.innerHTML='';
+  if(!children('root').length){
+    treeEl.innerHTML=`<div class="empty">Nothing here yet.<br><b>Right click</b> to add a file or folder, or <b>drop files</b> from your desktop.</div>`;
+  } else {
+    const frag=document.createDocumentFragment();
+    const emit=(id,depth)=>{
+      const n=TREE[id]; if(!n) return;
+      frag.appendChild(rowFor(n,depth));
+      if(n.type==='folder'&&n.open) n.children.forEach(c=>emit(c,depth+1));
+    };
+    TREE.root.children.forEach(c=>emit(c,0));
+    treeEl.appendChild(frag);
+  }
+  treeEl.scrollTop=scroll;
+  refreshApps();
+}
+function rowFor(n,depth){
+  const el=document.createElement('div');
+  el.className='row'+(n.id===selected?' sel':'')+(n.open?' open':'')+(n.isApp?' app':'')+(clipboard&&clipboard.cut&&clipboard.id===n.id?' cut':'');
+  el.dataset.id=n.id; el.draggable=true;
+  el.style.paddingLeft=(6+depth*13)+'px';
+  el.innerHTML=
+    (n.type==='folder'?`<span class="tw">${ico('chev')}</span>`:`<span class="tw"></span>`)+
+    `<span class="ic">${fileGlyph(n)}</span>`+
+    `<span class="nm">${escAttr(n.name)}</span>`+
+    (n.isApp?`<span class="pill">app</span>`:'');
+  return el;
+}
+
+/* click */
+treeEl.addEventListener('click',e=>{
+  const row=e.target.closest('.row'); if(!row||renaming) return;
+  const n=TREE[row.dataset.id]; if(!n) return;
+  selected=n.id;
+  if(n.type==='folder'){ n.open=!n.open; persistTree(); renderTree(); }
+  else { renderTree(); openFile(n.id); }
+});
+treeEl.addEventListener('dblclick',e=>{
+  const row=e.target.closest('.row'); if(!row) return;
+  const n=TREE[row.dataset.id];
+  if(n&&n.type==='folder'&&n.isApp) runApp(n.id);
+});
+
+/* inline rename */
+function startRename(id){
+  renaming=id; renderTree();
+  const row=treeEl.querySelector(`.row[data-id="${id}"]`); if(!row) return;
+  const n=TREE[id], nm=$('.nm',row);
+  const inp=document.createElement('input'); inp.className='ren'; inp.value=n.name;
+  nm.replaceWith(inp); inp.focus();
+  const dot=n.name.lastIndexOf('.');
+  if(n.type==='file'&&dot>0) inp.setSelectionRange(0,dot); else inp.select();
+  const done=ok=>{
+    if(renaming!==id) return; renaming=null;
+    const v=inp.value.trim();
+    if(ok&&v&&v!==n.name&&!/[\\/]/.test(v)){
+      n.name=uniqueName(n.parent,v);
+      if(n.type==='file') n.mime=mimeOf(n.name);
+      sortChildren(n.parent); persistTree();
+      const t=tabs.find(t=>t.id===id); if(t){ t.lang=langOf(n.name); renderTabs(); if(t.render) t.render(); }
+    }
+    renderTree();
+  };
+  inp.addEventListener('keydown',e=>{e.stopPropagation();if(e.key==='Enter'){e.preventDefault();done(true);}if(e.key==='Escape'){e.preventDefault();done(false);}});
+  inp.addEventListener('blur',()=>done(true));
+}
+
+/* drag + drop within the tree */
+let dragId=null;
+treeEl.addEventListener('dragstart',e=>{
+  const row=e.target.closest('.row'); if(!row) return;
+  dragId=row.dataset.id; e.dataTransfer.effectAllowed='move';
+  e.dataTransfer.setData('text/plain',pathOf(dragId));
+});
+treeEl.addEventListener('dragend',()=>{dragId=null;$$('.row.drop').forEach(r=>r.classList.remove('drop'));treeEl.classList.remove('dragover-root');});
+treeEl.addEventListener('dragover',e=>{
+  e.preventDefault();
+  $$('.row.drop').forEach(r=>r.classList.remove('drop'));
+  const row=e.target.closest('.row');
+  const target=row?TREE[row.dataset.id]:null;
+  const folder=target?(target.type==='folder'?target:TREE[target.parent]):TREE.root;
+  treeEl.classList.toggle('dragover-root',!row);
+  if(row&&folder){
+    const fr=treeEl.querySelector(`.row[data-id="${folder.id}"]`);
+    if(fr&&(!dragId||!isDesc(folder.id,dragId))) fr.classList.add('drop');
+  }
+  e.dataTransfer.dropEffect=dragId?'move':'copy';
+});
+treeEl.addEventListener('dragleave',e=>{ if(e.target===treeEl) treeEl.classList.remove('dragover-root'); });
+treeEl.addEventListener('drop',async e=>{
+  e.preventDefault();
+  $$('.row.drop').forEach(r=>r.classList.remove('drop'));
+  treeEl.classList.remove('dragover-root');
+  const row=e.target.closest('.row');
+  const target=row?TREE[row.dataset.id]:null;
+  const dest=target?(target.type==='folder'?target.id:target.parent):'root';
+  if(e.dataTransfer.files&&e.dataTransfer.files.length){ await importFiles(e.dataTransfer.files,dest); return; }
+  if(dragId&&moveNode(dragId,dest)) renderTree();
+  dragId=null;
+});
+
+/* ── context menu ───────────────────────────────────────────── */
+const ctx=$('#ctx');
+function closeMenu(){ ctx.classList.remove('on'); ctx.innerHTML=''; }
+document.addEventListener('mousedown',e=>{ if(!ctx.contains(e.target)) closeMenu(); },true);
+window.addEventListener('blur',closeMenu);
+window.addEventListener('resize',closeMenu);
+
+function menu(x,y,items){
+  ctx.innerHTML='';
+  for(const it of items){
+    if(it==='-'){ ctx.insertAdjacentHTML('beforeend','<div class="msep"></div>'); continue; }
+    if(it.label!==undefined&&!it.fn){ ctx.insertAdjacentHTML('beforeend',`<div class="mlbl">${escAttr(it.label)}</div>`); continue; }
+    const b=document.createElement('button');
+    b.className='mi'+(it.danger?' danger':'');
+    b.innerHTML=`<span class="ic">${it.icon?ico(it.icon):''}</span><span>${escAttr(it.text)}</span>`+(it.key?`<span class="k">${escAttr(it.key)}</span>`:'');
+    b.onclick=()=>{ closeMenu(); it.fn(); };
+    ctx.appendChild(b);
+  }
+  ctx.classList.add('on');
+  ctx.style.left='0px'; ctx.style.top='0px';
+  const r=ctx.getBoundingClientRect();
+  ctx.style.left=clamp(x,4,innerWidth-r.width-6)+'px';
+  ctx.style.top=clamp(y,4,innerHeight-r.height-6)+'px';
+}
+
+treeEl.addEventListener('contextmenu',e=>{
+  e.preventDefault();
+  const row=e.target.closest('.row');
+  if(!row){ selected=null; renderTree(); return menu(e.clientX,e.clientY,folderMenu('root')); }
+  const n=TREE[row.dataset.id]; selected=n.id; renderTree();
+  menu(e.clientX,e.clientY, n.type==='folder'?folderMenu(n.id):fileMenu(n.id));
+});
+
+function folderMenu(id){
+  const n=TREE[id], isRoot=id==='root';
+  const items=[
+    {label:isRoot?'Workspace':n.name},
+    {text:'New file',icon:'filePlus',fn:()=>newThing(id,'file')},
+    {text:'New folder',icon:'folderPlus',fn:()=>newThing(id,'folder')},
+    {text:'Upload files…',icon:'upload',fn:()=>pickFiles(id)},
+    {text:'Upload folder…',icon:'folder',fn:()=>pickDir(id)},
+    '-',
+  ];
+  if(!isRoot){
+    if(n.isApp){
+      items.push({text:'Run app',icon:'play',key:'dbl-click',fn:()=>runApp(id)});
+      items.push({text:'Change icon…',icon:'cube',fn:()=>appDialog(id)});
+      items.push({text:'Detach from apps',icon:'x',fn:()=>{delete n.isApp;delete n.icon;persistTree();renderTree();toast(n.name+' is a plain folder again','info');}});
+    } else {
+      items.push({text:'Convert to app…',icon:'cube',fn:()=>appDialog(id)});
+    }
+    items.push('-');
+  }
+  items.push({text:'Download as ZIP',icon:'zip',fn:()=>downloadZip(id)});
+  if(clipboard) items.push({text:'Paste',icon:'clip',key:'Ctrl+V',fn:()=>doPaste(id)});
+  if(!isRoot){
+    items.push('-');
+    items.push({text:'Copy',icon:'copy',key:'Ctrl+C',fn:()=>{clipboard={id,cut:false};renderTree();}});
+    items.push({text:'Cut',icon:'scissors',key:'Ctrl+X',fn:()=>{clipboard={id,cut:true};renderTree();}});
+    items.push({text:'Rename',icon:'pencil',key:'F2',fn:()=>startRename(id)});
+    items.push({text:'Delete',icon:'trash',key:'Del',danger:true,fn:()=>confirmDelete(id)});
+  }
+  return items;
+}
+function fileMenu(id){
+  const n=TREE[id], lang=langOf(n.name), kind=kindOf(n.name);
+  const items=[{label:n.name}];
+  items.push({text:'Open',icon:'file',fn:()=>openFile(id)});
+  if(ext(n.name)==='js'||ext(n.name)==='mjs') items.push({text:'Run',icon:'play',fn:()=>runScript(id)});
+  if(ext(n.name)==='html'||ext(n.name)==='htm') items.push({text:'Preview',icon:'eye',fn:()=>previewHtml(id)});
+  if(kind==='image'||kind==='audio'||kind==='video') items.push({text:'Open in editor',icon:'brush',fn:()=>openFile(id)});
+  items.push('-');
+  items.push({text:'Download',icon:'download',fn:()=>downloadFile(id)});
+  items.push({text:'Duplicate',icon:'copy',fn:async()=>{await cloneNode(id,n.parent);persistTree();renderTree();toast('Duplicated');}});
+  items.push('-');
+  items.push({text:'Copy',icon:'copy',key:'Ctrl+C',fn:()=>{clipboard={id,cut:false};renderTree();}});
+  items.push({text:'Cut',icon:'scissors',key:'Ctrl+X',fn:()=>{clipboard={id,cut:true};renderTree();}});
+  items.push({text:'Rename',icon:'pencil',key:'F2',fn:()=>startRename(id)});
+  items.push({text:'Delete',icon:'trash',key:'Del',danger:true,fn:()=>confirmDelete(id)});
+  return items;
+}
+
+function newThing(parentId,type){
+  const n=mkNode(parentId,type==='folder'?'New folder':'untitled.txt',type);
+  if(type==='file') writeText(n.id,'');
+  persistTree(); renderTree(); startRename(n.id);
+}
+async function doPaste(destId){
+  if(!clipboard) return;
+  const src=TREE[clipboard.id]; if(!src) return (clipboard=null);
+  if(isDesc(destId,clipboard.id)) return toast("Can't paste a folder into itself",'err');
+  if(clipboard.cut){ moveNode(clipboard.id,destId); clipboard=null; }
+  else { await cloneNode(clipboard.id,destId); }
+  persistTree(); renderTree(); toast('Pasted');
+}
+function confirmDelete(id){
+  const n=TREE[id];
+  const count=n.type==='folder'?collectFiles(id).length:0;
+  showModal({
+    title:'Delete '+n.name+'?',
+    sub:n.type==='folder'?`${count} file${count===1?'':'s'} inside will go too. This can't be undone.`:"This can't be undone.",
+    body:'',
+    actions:[{text:'Cancel'},{text:'Delete',cls:'danger',fn:async()=>{await delNode(id);renderTree();toast(n.name+' deleted','info');}}]
+  });
+}
+
+/* ── importing from disk ────────────────────────────────────── */
+let pendingImportTarget='root';
+function pickFiles(dest){ pendingImportTarget=dest; $('#fileInput').click(); }
+function pickDir(dest){ pendingImportTarget=dest; $('#dirInput').click(); }
+$('#fileInput').addEventListener('change',async e=>{ await importFiles(e.target.files,pendingImportTarget); e.target.value=''; });
+$('#dirInput').addEventListener('change',async e=>{ await importFiles(e.target.files,pendingImportTarget,true); e.target.value=''; });
+
+async function importFiles(fileList,destId,useRelative){
+  const files=[...fileList]; if(!files.length) return;
+  let n=0;
+  for(const f of files){
+    let parent=destId;
+    const rel=useRelative?(f.webkitRelativePath||''):'';
+    if(rel&&rel.includes('/')){
+      const dirs=rel.split('/').slice(0,-1);
+      for(const d of dirs){
+        let hit=children(parent).find(c=>c.type==='folder'&&c.name===d);
+        if(!hit) hit=mkNode(parent,d,'folder');
+        parent=hit.id;
+      }
+    }
+    const node=mkNode(parent,f.name,'file',{mime:f.type||mimeOf(f.name)});
+    await writeBlob(node.id,f.slice(0,f.size,f.type||mimeOf(f.name)));
+    n++;
+  }
+  persistTree(true); renderTree();
+  toast(`${n} file${n===1?'':'s'} added to ${destId==='root'?'Workspace':TREE[destId].name}`);
+}
+
+/* sidebar header buttons */
+$('#btnNewFile').onclick=()=>newThing(targetFolder(),'file');
+$('#btnNewFolder').onclick=()=>newThing(targetFolder(),'folder');
+$('#btnUpload').onclick=()=>pickFiles(targetFolder());
+$('#btnCollapse').onclick=()=>{ for(const k in TREE) if(TREE[k].type==='folder'&&k!=='root') TREE[k].open=false; persistTree(); renderTree(); };
+function targetFolder(){
+  if(!selected||!TREE[selected]) return 'root';
+  return TREE[selected].type==='folder'?selected:TREE[selected].parent;
+}
+
+/* resizable sidebar */
+(()=>{
+  const g=$('#gutterDrag'), sb=$('#sidebar'); let on=false;
+  g.addEventListener('mousedown',e=>{on=true;g.classList.add('act');e.preventDefault();document.body.style.cursor='col-resize';});
+  addEventListener('mousemove',e=>{ if(!on)return; const w=clamp(e.clientX,150,innerWidth*0.6); sb.style.flexBasis=w+'px'; sb.style.width=w+'px'; SET.sidebarW=w; });
+  addEventListener('mouseup',()=>{ if(!on)return; on=false; g.classList.remove('act'); document.body.style.cursor=''; persistSettings(); });
+})();
+
+/* ═══════════════════════════════════════════════════════════════
+   8. syntax highlighting
+   ═══════════════════════════════════════════════════════════════ */
+const JS_KW=new Set('var let const function return if else for while do switch case break continue new delete typeof instanceof in of class extends super this null undefined true false try catch finally throw async await yield static get set import export from as void with debugger'.split(' '));
+const JS_KW2=new Set('return if else for while switch case break continue new delete typeof instanceof class extends super try catch finally throw async await yield import export'.split(' '));
+
+function tokJS(s){
+  const out=[]; let i=0, prev='';
+  const push=(t,c)=>{ if(t) out.push([t,c]); };
+  while(i<s.length){
+    const c=s[i];
+    if(c==='/'&&s[i+1]==='/'){ let j=s.indexOf('\n',i); if(j<0)j=s.length; push(s.slice(i,j),'t-com'); i=j; continue; }
+    if(c==='/'&&s[i+1]==='*'){ let j=s.indexOf('*/',i+2); j=j<0?s.length:j+2; push(s.slice(i,j),'t-com'); i=j; continue; }
+    if(c==='"'||c==="'"||c==='`'){
+      let j=i+1; while(j<s.length){ if(s[j]==='\\'){j+=2;continue;} if(s[j]===c){j++;break;} if(c!=='`'&&s[j]==='\n'){break;} j++; }
+      push(s.slice(i,j),'t-str'); i=j; prev='str'; continue;
+    }
+    if(c==='/'&&(prev===''||prev==='op'||prev==='kw')){
+      let j=i+1,ok=false,cls=false;
+      while(j<s.length){ const d=s[j];
+        if(d==='\\'){j+=2;continue;} if(d==='[')cls=true; else if(d===']')cls=false;
+        else if(d==='/'&&!cls){ok=true;j++;break;} else if(d==='\n')break; j++; }
+      if(ok){ while(j<s.length&&/[gimsuyd]/.test(s[j]))j++; push(s.slice(i,j),'t-str'); i=j; prev='str'; continue; }
+    }
+    if(/[0-9]/.test(c)||(c==='.'&&/[0-9]/.test(s[i+1]||''))){
+      let j=i; while(j<s.length&&/[0-9a-fA-FxXbBoOeE._n+-]/.test(s[j])){ if(/[+-]/.test(s[j])&&!/[eE]/.test(s[j-1]))break; j++; }
+      push(s.slice(i,j),'t-num'); i=j; prev='num'; continue;
+    }
+    if(/[A-Za-z_$]/.test(c)){
+      let j=i; while(j<s.length&&/[A-Za-z0-9_$]/.test(s[j]))j++;
+      const w=s.slice(i,j);
+      let k=j; while(k<s.length&&/\s/.test(s[k]))k++;
+      let cls='';
+      if(JS_KW.has(w)) cls=JS_KW2.has(w)?'t-kw2':'t-kw';
+      else if(s[k]==='(') cls='t-fn';
+      else if(/^[A-Z]/.test(w)) cls='t-fn';
+      push(w,cls); i=j; prev=cls.startsWith('t-kw')?'kw':'id'; continue;
+    }
+    if(/\s/.test(c)){ let j=i; while(j<s.length&&/\s/.test(s[j]))j++; push(s.slice(i,j),''); i=j; continue; }
+    let j=i; while(j<s.length&&/[^\w\s$'"`]/.test(s[j])&&!(s[j]==='/'&&/[/*]/.test(s[j+1]||'')))j++;
+    if(j===i)j=i+1;
+    const p=s.slice(i,j);
+    push(p,/[{}()[\];,]/.test(p)?'t-punc':'t-op');
+    prev=/[)\]]/.test(p[p.length-1])?'id':'op';
+    i=j;
+  }
+  return out;
+}
+function tokCSS(s){
+  const out=[]; let i=0, depth=0, inVal=false;
+  const push=(t,c)=>{ if(t) out.push([t,c]); };
+  while(i<s.length){
+    const c=s[i];
+    if(c==='/'&&s[i+1]==='*'){ let j=s.indexOf('*/',i+2); j=j<0?s.length:j+2; push(s.slice(i,j),'t-com'); i=j; continue; }
+    if(c==='"'||c==="'"){ let j=i+1; while(j<s.length){if(s[j]==='\\'){j+=2;continue;}if(s[j]===c){j++;break;}j++;} push(s.slice(i,j),'t-str'); i=j; continue; }
+    if(c==='@'&&!depth){ let j=i+1; while(j<s.length&&/[\w-]/.test(s[j]))j++; push(s.slice(i,j),'t-at'); i=j; continue; }
+    if(c==='{'){ depth++; inVal=false; push(c,'t-punc'); i++; continue; }
+    if(c==='}'){ depth=Math.max(0,depth-1); inVal=false; push(c,'t-punc'); i++; continue; }
+    if(c===':'&&depth){ inVal=true; push(c,'t-punc'); i++; continue; }
+    if(c===';'){ inVal=false; push(c,'t-punc'); i++; continue; }
+    if(/\s/.test(c)){ let j=i; while(j<s.length&&/\s/.test(s[j]))j++; push(s.slice(i,j),''); i=j; continue; }
+    if(/[0-9]/.test(c)||(c==='#'&&depth)){
+      let j=i+1; while(j<s.length&&/[\w.%#-]/.test(s[j]))j++;
+      push(s.slice(i,j),'t-num'); i=j; continue;
+    }
+    if(/[\w.#*[\]&-]/.test(c)){
+      let j=i; while(j<s.length&&/[\w.#*[\]="'&:>~+-]/.test(s[j])&&!(s[j]===':'&&depth))j++;
+      if(j===i)j=i+1;
+      const w=s.slice(i,j);
+      push(w, depth? (inVal?'t-val':'t-prop') : 't-sel'); i=j; continue;
+    }
+    push(c,'t-punc'); i++;
+  }
+  return out;
+}
+function tokHTML(s){
+  const out=[]; let i=0;
+  const push=(t,c)=>{ if(t) out.push([t,c]); };
+  while(i<s.length){
+    if(s.startsWith('<!--',i)){ let j=s.indexOf('-->',i); j=j<0?s.length:j+3; push(s.slice(i,j),'t-com'); i=j; continue; }
+    if(s[i]==='<'){
+      const m=/^<\/?([A-Za-z][\w:-]*)/.exec(s.slice(i));
+      if(!m){ push('<','t-punc'); i++; continue; }
+      const tag=m[1].toLowerCase();
+      let j=i+m[0].length;
+      push(s.slice(i,j),'t-tag');
+      // attributes
+      while(j<s.length&&s[j]!=='>'){
+        if(/\s/.test(s[j])){ let k=j; while(k<s.length&&/\s/.test(s[k]))k++; push(s.slice(j,k),''); j=k; continue; }
+        if(s[j]==='/'){ push('/','t-tag'); j++; continue; }
+        if(s[j]==='='){ push('=','t-punc'); j++; continue; }
+        if(s[j]==='"'||s[j]==="'"){ const q=s[j]; let k=j+1; while(k<s.length&&s[k]!==q)k++; k=Math.min(k+1,s.length); push(s.slice(j,k),'t-str'); j=k; continue; }
+        let k=j; while(k<s.length&&!/[\s=>/]/.test(s[k]))k++; if(k===j)k=j+1;
+        push(s.slice(j,k),'t-attr'); j=k;
+      }
+      if(s[j]==='>'){ push('>','t-tag'); j++; }
+      i=j;
+      if(tag==='script'||tag==='style'){
+        const close=s.toLowerCase().indexOf('</'+tag,i);
+        const end=close<0?s.length:close;
+        const inner=s.slice(i,end);
+        if(inner) out.push(...(tag==='script'?tokJS(inner):tokCSS(inner)));
+        i=end;
+      }
+      continue;
+    }
+    let j=s.indexOf('<',i); if(j<0)j=s.length;
+    push(s.slice(i,j),''); i=j;
+  }
+  return out;
+}
+function tokenize(text,lang){
+  try{
+    if(lang==='js')return tokJS(text);
+    if(lang==='css')return tokCSS(text);
+    if(lang==='html')return tokHTML(text);
+  }catch(e){}
+  return [[text,'']];
+}
+/* tokens → one <div class="cl"> per logical line */
+function tokensToHTML(tokens){
+  let html='<div class="cl">'; 
+  for(const [t,c] of tokens){
+    const parts=t.split('\n');
+    for(let k=0;k<parts.length;k++){
+      if(k) html+='</div><div class="cl">';
+      if(parts[k]) html+= c?`<span class="${c}">${esc(parts[k])}</span>`:esc(parts[k]);
+    }
+  }
+  return html+'</div>';
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   9. tabs + editor
+   ═══════════════════════════════════════════════════════════════ */
+let tabs=[], active=null;
+const tabsEl=$('#tabs'), panesEl=$('#panes');
+const keyOf=(mode,id)=>mode+':'+id;
+
+function renderTabs(){
+  tabsEl.innerHTML='';
+  for(const t of tabs){
+    const n=TREE[t.id]; if(!n) continue;
+    const el=document.createElement('div');
+    el.className='tab'+(t.key===active?' on':'')+(t.dirty?' dirty':'');
+    el.dataset.key=t.key;
+    const badge=t.mode==='console'?ico('term'):t.mode==='preview'?ico('eye'):fileGlyph(n);
+    el.innerHTML=`<span class="ic">${badge}</span><span class="tt">${escAttr(t.mode==='console'?'Run — '+n.name:t.mode==='preview'?'Preview — '+n.name:n.name)}</span><span class="x">${ico('x')}</span>`;
+    el.onclick=e=>{ if(e.target.closest('.x')) return closeTabKey(t.key); setActive(t.key); };
+    el.onauxclick=e=>{ if(e.button===1){e.preventDefault();closeTabKey(t.key);} };
+    tabsEl.appendChild(el);
+  }
+}
+function setActive(key){
+  active=key;
+  $$('.pane',panesEl).forEach(p=>p.classList.toggle('on',p.dataset.key===key));
+  if(!tabs.length) $('#welcome').classList.add('on');
+  renderTabs();
+  const t=tabs.find(t=>t.key===key);
+  if(t&&t.mode==='edit'&&t.ta) setTimeout(()=>{t.ta.focus();syncGutter(t);},0);
+  const el=tabsEl.querySelector(`.tab[data-key="${key}"]`); if(el&&el.scrollIntoView) el.scrollIntoView({block:'nearest',inline:'nearest'});
+}
+function closeTabKey(key){
+  const i=tabs.findIndex(t=>t.key===key); if(i<0) return;
+  const t=tabs[i];
+  if(t.flush) t.flush();
+  if(t.cleanup) t.cleanup();
+  tabs.splice(i,1);
+  const pane=panesEl.querySelector(`.pane[data-key="${CSS.escape(key)}"]`); if(pane) pane.remove();
+  if(active===key) setActive(tabs.length?tabs[Math.min(i,tabs.length-1)].key:null);
+  else renderTabs();
+  if(!tabs.length){ $('#welcome').classList.add('on'); active=null; }
+}
+function closeTab(nodeId){ tabs.filter(t=>t.id===nodeId).forEach(t=>closeTabKey(t.key)); }
+
+function makePane(key){
+  $('#welcome').classList.remove('on');
+  let p=panesEl.querySelector(`.pane[data-key="${CSS.escape(key)}"]`);
+  if(p) return p;
+  p=document.createElement('div'); p.className='pane'; p.dataset.key=key;
+  panesEl.appendChild(p); return p;
+}
+
+/* ── open a file, dispatching by kind ───────────────────────── */
+async function openFile(id){
+  const n=TREE[id]; if(!n||n.type!=='file') return;
+  const key=keyOf('edit',id);
+  if(tabs.find(t=>t.key===key)) return setActive(key);
+  const kind=kindOf(n.name);
+  if(kind==='image') return openImage(id);
+  if(kind==='audio') return openAudio(id);
+  if(kind==='video') return openVideo(id);
+  if(kind==='pdf'||kind==='bin') return openBinary(id);
+  return openText(id);
+}
+
+/* ── text / code editor ─────────────────────────────────────── */
+async function openText(id){
+  const n=TREE[id], key=keyOf('edit',id);
+  const text=await readText(id);
+  const pane=makePane(key);
+  pane.innerHTML=`
+  <div class="ebar">
+    <span class="mono" data-r="lang"></span><div class="sep"></div>
+    <button data-a="wrap" title="Word wrap">Wrap</button>
+    <button data-a="spell" title="Spelling detection">Spelling</button>
+    <button data-a="hl" title="Syntax highlighting">Syntax</button>
+    <div class="sep"></div>
+    <span style="font-size:10px;letter-spacing:.1em;text-transform:uppercase">Indent</span>
+    <button data-a="indentKind"></button>
+    <div class="stepper" style="height:20px">
+      <button data-a="ind-" style="width:20px;height:20px">−</button><span data-r="tab" style="width:20px;font-size:11px"></span><button data-a="ind+" style="width:20px;height:20px">+</button>
+    </div>
+    <button data-a="reindent" title="Re-indent whole document">Apply</button>
+    <div class="sep"></div>
+    <button data-a="fmtjson" title="Pretty-print JSON">Format</button>
+    <button data-a="find">Find</button>
+    <span class="spacer" style="flex:1"></span>
+    <button data-a="save" title="Ctrl+S">Save</button>
+  </div>
+  <div class="ed">
+    <div class="ednums" data-r="nums"></div>
+    <div class="edwrap" data-r="wrap">
+      <pre class="edhl" data-r="hl"></pre>
+      <textarea class="edta" spellcheck="false" autocomplete="off" autocapitalize="off" autocorrect="off" wrap="off"></textarea>
+    </div>
+    <div class="find" data-r="find">
+      <input data-r="q" placeholder="Find">
+      <input data-r="rep" placeholder="Replace">
+      <span class="cnt" data-r="cnt">0 / 0</span>
+      <button data-a="prev">↑</button><button data-a="next">↓</button>
+      <button data-a="rep1">Replace</button><button data-a="repAll">All</button>
+      <button data-a="closeFind">${ico('x')}</button>
+    </div>
+  </div>
+  <div class="edstat">
+    <span data-r="pos">Ln 1, Col 1</span><span data-r="sel"></span>
+    <span class="spacer"></span>
+    <span data-r="meta"></span>
+  </div>`;
+  const R=s=>pane.querySelector(`[data-r="${s}"]`);
+  const ta=pane.querySelector('.edta'), hl=R('hl'), nums=R('nums'), edwrap=R('wrap');
+  ta.value=text;
+  const t={key,id,mode:'edit',pane,ta,hl,nums,lang:langOf(n.name),dirty:false,matches:[],mi:-1};
+  tabs.push(t);
+
+  const applySettings=()=>{
+    pane.classList.toggle('wrapon',SET.wrap);
+    ta.setAttribute('wrap',SET.wrap?'soft':'off');
+    ta.spellcheck=SET.spellcheck;
+    nums.style.display=SET.lineNumbers?'':'none';
+    pane.style.setProperty('--fs',SET.fontSize+'px');
+    pane.style.setProperty('--lh',Math.round(SET.fontSize*1.55)+'px');
+    ta.style.tabSize=hl.style.tabSize=SET.tabSize;
+    pane.querySelector('[data-a="wrap"]').classList.toggle('on',SET.wrap);
+    pane.querySelector('[data-a="spell"]').classList.toggle('on',SET.spellcheck);
+    pane.querySelector('[data-a="hl"]').classList.toggle('on',SET.highlight);
+    pane.querySelector('[data-a="indentKind"]').textContent=SET.useTabs?'Tabs':'Spaces';
+    R('tab').textContent=SET.tabSize;
+    R('lang').textContent=({js:'JavaScript',css:'CSS',html:'HTML',plain:'Plain text'})[t.lang];
+    render();
+  };
+  t.applySettings=applySettings;
+
+  const BIG=400000;
+  function render(){
+    const v=ta.value;
+    if(SET.highlight&&v.length<BIG&&t.lang!=='plain') hl.innerHTML=tokensToHTML(tokenize(v,t.lang));
+    else hl.innerHTML=tokensToHTML([[v,'']]);
+    ta.style.height='auto'; ta.style.height=hl.scrollHeight+'px';
+    syncGutter(t);
+    updateStatus();
+  }
+  t.render=render;
+
+  function updateStatus(){
+    const v=ta.value, p=ta.selectionStart;
+    const before=v.slice(0,p); const ln=before.split('\n').length;
+    const col=p-(before.lastIndexOf('\n')+1)+1;
+    R('pos').textContent=`Ln ${ln}, Col ${col}`;
+    const selLen=ta.selectionEnd-ta.selectionStart;
+    R('sel').textContent=selLen?`${selLen} selected`:'';
+    R('meta').innerHTML=`<b>${v.split('\n').length}</b> lines · <b>${bytes(new Blob([v]).size)}</b> · ${SET.useTabs?'Tabs':'Spaces'}: <b>${SET.tabSize}</b>`;
+    highlightCurrentLine(t,ln);
+  }
+  t.updateStatus=updateStatus;
+
+  let dt=null;
+  const markDirty=()=>{
+    if(!t.dirty){ t.dirty=true; renderTabs(); }
+    clearTimeout(dt); dt=setTimeout(()=>flush(),450);
+  };
+  const flush=async()=>{
+    clearTimeout(dt);
+    if(!t.dirty) return;
+    let v=ta.value;
+    if(SET.trailingNewline&&v&&!v.endsWith('\n')&&kindOf(n.name)==='text'&&langOf(n.name)!=='plain'){/* leave content untouched */}
+    await writeText(id,v);
+    t.dirty=false; renderTabs();
+  };
+  t.flush=flush;
+
+  ta.addEventListener('input',()=>{ render(); markDirty(); if(t.q&&t.q.value) runFind(t,false); });
+  ta.addEventListener('scroll',()=>{ nums.scrollTop=ta.scrollTop; });
+  edwrap.addEventListener('scroll',()=>{ nums.style.transform=`translateY(${-edwrap.scrollTop}px)`; });
+  ['click','keyup','select'].forEach(ev=>ta.addEventListener(ev,updateStatus));
+  ta.addEventListener('keydown',e=>editorKeys(e,t));
+
+  pane.addEventListener('click',e=>{
+    const a=e.target.closest('[data-a]'); if(!a) return;
+    const act=a.dataset.a;
+    if(act==='wrap'){SET.wrap=!SET.wrap;persistSettings();allPanes(p=>p.applySettings&&p.applySettings());}
+    if(act==='spell'){SET.spellcheck=!SET.spellcheck;persistSettings();allPanes(p=>p.applySettings&&p.applySettings());}
+    if(act==='hl'){SET.highlight=!SET.highlight;persistSettings();allPanes(p=>p.applySettings&&p.applySettings());}
+    if(act==='indentKind'){SET.useTabs=!SET.useTabs;persistSettings();allPanes(p=>p.applySettings&&p.applySettings());}
+    if(act==='ind-'){SET.tabSize=clamp(SET.tabSize-1,1,8);persistSettings();allPanes(p=>p.applySettings&&p.applySettings());}
+    if(act==='ind+'){SET.tabSize=clamp(SET.tabSize+1,1,8);persistSettings();allPanes(p=>p.applySettings&&p.applySettings());}
+    if(act==='reindent'){reindent(t);}
+    if(act==='fmtjson'){formatDoc(t);}
+    if(act==='find'){openFind(t);}
+    if(act==='closeFind'){R('find').classList.remove('on');clearFindMarks(t);ta.focus();}
+    if(act==='next'){stepFind(t,1);} if(act==='prev'){stepFind(t,-1);}
+    if(act==='rep1'){replaceOne(t);} if(act==='repAll'){replaceAll(t);}
+    if(act==='save'){flush().then(()=>toast('Saved '+n.name));}
+  });
+  t.q=R('q'); t.rep=R('rep'); t.cnt=R('cnt'); t.findBox=R('find');
+  t.q.addEventListener('input',()=>runFind(t,false));
+  t.q.addEventListener('keydown',e=>{e.stopPropagation();if(e.key==='Enter'){e.preventDefault();stepFind(t,e.shiftKey?-1:1);}if(e.key==='Escape'){R('find').classList.remove('on');ta.focus();}});
+  t.rep.addEventListener('keydown',e=>{e.stopPropagation();if(e.key==='Enter'){e.preventDefault();replaceOne(t);}});
+
+  applySettings();
+  setActive(key);
+}
+function allPanes(fn){ tabs.forEach(fn); }
+
+function syncGutter(t){
+  if(!SET.lineNumbers) return;
+  const rows=t.hl.children, n=rows.length;
+  let html='';
+  for(let i=0;i<n;i++) html+=`<div style="height:${rows[i].offsetHeight}px">${i+1}</div>`;
+  t.nums.innerHTML=html;
+  const v=t.ta.value, p=t.ta.selectionStart;
+  highlightCurrentLine(t,v.slice(0,p).split('\n').length);
+}
+function highlightCurrentLine(t,ln){
+  const prev=t.hl.querySelector('.cl.cur'); if(prev) prev.classList.remove('cur');
+  const pn=t.nums.querySelector('.cur'); if(pn) pn.classList.remove('cur');
+  const row=t.hl.children[ln-1]; if(row) row.classList.add('cur');
+  const nr=t.nums.children[ln-1]; if(nr) nr.classList.add('cur');
+}
+
+/* ── key handling ───────────────────────────────────────────── */
+const PAIRS={'(':')','[':']','{':'}','"':'"',"'":"'",'`':'`'};
+function ins(ta,text){
+  if(!document.execCommand||!document.execCommand('insertText',false,text)){
+    const s=ta.selectionStart,e=ta.selectionEnd;
+    ta.value=ta.value.slice(0,s)+text+ta.value.slice(e);
+    ta.selectionStart=ta.selectionEnd=s+text.length;
+  }
+}
+function unit(){ return SET.useTabs?'\t':' '.repeat(SET.tabSize); }
+function lineBounds(v,pos){
+  const a=v.lastIndexOf('\n',pos-1)+1;
+  let b=v.indexOf('\n',pos); if(b<0)b=v.length;
+  return [a,b];
+}
+function editorKeys(e,t){
+  const ta=t.ta, v=ta.value; let s=ta.selectionStart, en=ta.selectionEnd;
+  const mod=e.ctrlKey||e.metaKey;
+
+  if(mod&&e.key.toLowerCase()==='s'){ e.preventDefault(); t.flush().then(()=>toast('Saved '+TREE[t.id].name)); return; }
+  if(mod&&e.key.toLowerCase()==='f'){ e.preventDefault(); openFind(t); return; }
+  if(mod&&e.key.toLowerCase()==='h'){ e.preventDefault(); openFind(t,true); return; }
+  if(mod&&e.key==='/'){
+    e.preventDefault();
+    const [a]=lineBounds(v,s); let [,b]=lineBounds(v,en);
+    const block=v.slice(a,b), lines=block.split('\n');
+    const tok=t.lang==='css'?['/* ',' */']:t.lang==='html'?['<!-- ',' -->']:['// ',''];
+    const allOn=lines.every(l=>!l.trim()||l.trimStart().startsWith(tok[0].trim()));
+    const out=lines.map(l=>{
+      if(!l.trim()) return l;
+      if(allOn){
+        let r=l.replace(tok[0].trim()+' ','').replace(tok[0].trim(),'');
+        if(tok[1]) r=r.replace(new RegExp('\\s*'+tok[1].trim().replace(/[*/]/g,'\\$&')+'$'),'');
+        return r;
+      }
+      const m=l.match(/^\s*/)[0];
+      return m+tok[0]+l.slice(m.length)+tok[1];
+    }).join('\n');
+    ta.setSelectionRange(a,b); ins(ta,out); ta.setSelectionRange(a,a+out.length);
+    t.render(); return;
+  }
+  if(mod&&e.key.toLowerCase()==='d'){
+    e.preventDefault();
+    const [a,b]=lineBounds(v,s); const line=v.slice(a,b);
+    ta.setSelectionRange(b,b); ins(ta,'\n'+line);
+    ta.setSelectionRange(b+1+(s-a),b+1+(s-a)); t.render(); return;
+  }
+  if(e.altKey&&(e.key==='ArrowUp'||e.key==='ArrowDown')){
+    e.preventDefault();
+    const up=e.key==='ArrowUp';
+    const [a]=lineBounds(v,s); let [,b]=lineBounds(v,en);
+    if(up&&a===0) return; if(!up&&b>=v.length) return;
+    const block=v.slice(a,b);
+    if(up){ const [pa]=lineBounds(v,a-1); const prev=v.slice(pa,a-1);
+      ta.setSelectionRange(pa,b); ins(ta,block+'\n'+prev);
+      ta.setSelectionRange(pa+(s-a),pa+(en-a)); }
+    else { let [,nb]=lineBounds(v,b+1); const next=v.slice(b+1,nb);
+      ta.setSelectionRange(a,nb); ins(ta,next+'\n'+block);
+      ta.setSelectionRange(a+next.length+1+(s-a),a+next.length+1+(en-a)); }
+    t.render(); return;
+  }
+  if(e.key==='Tab'){
+    e.preventDefault();
+    const multi=v.slice(s,en).includes('\n');
+    if(multi||e.shiftKey){
+      const [a]=lineBounds(v,s); let [,b]=lineBounds(v,en);
+      const lines=v.slice(a,b).split('\n');
+      const u=unit();
+      const out=lines.map(l=>{
+        if(e.shiftKey){
+          if(l.startsWith(u)) return l.slice(u.length);
+          if(l.startsWith('\t')) return l.slice(1);
+          return l.replace(/^ +/,m=>m.slice(Math.min(m.length,SET.tabSize)));
+        }
+        return u+l;
+      }).join('\n');
+      ta.setSelectionRange(a,b); ins(ta,out); ta.setSelectionRange(a,a+out.length);
+    } else ins(ta,unit());
+    t.render(); return;
+  }
+  if(e.key==='Enter'&&SET.autoIndent){
+    e.preventDefault();
+    const [a]=lineBounds(v,s);
+    const cur=v.slice(a,s);
+    let indent=(cur.match(/^[\t ]*/)||[''])[0];
+    const last=cur.trimEnd().slice(-1), nxt=v[en]||'';
+    if(/[{[(:>]/.test(last)) {
+      const extra=indent+unit();
+      if((last==='{'&&nxt==='}')||(last==='['&&nxt===']')||(last==='('&&nxt===')')){
+        ins(ta,'\n'+extra+'\n'+indent);
+        ta.setSelectionRange(s+1+extra.length,s+1+extra.length);
+      } else { ins(ta,'\n'+extra); }
+    } else ins(ta,'\n'+indent);
+    t.render(); return;
+  }
+  if(SET.autoClose&&PAIRS[e.key]&&!e.ctrlKey&&!e.metaKey){
+    const close=PAIRS[e.key], sel=v.slice(s,en);
+    if(sel){ e.preventDefault(); ins(ta,e.key+sel+close); ta.setSelectionRange(s+1,s+1+sel.length); t.render(); return; }
+    const nxt=v[s]||'';
+    if(/["'`]/.test(e.key)&&/[\w"'`]/.test(v[s-1]||'')) return;
+    if(!nxt||/[\s)\]},;.]/.test(nxt)){ e.preventDefault(); ins(ta,e.key+close); ta.setSelectionRange(s+1,s+1); t.render(); return; }
+  }
+  if(SET.autoClose&&/[)\]}"'`]/.test(e.key)&&s===en&&v[s]===e.key){
+    e.preventDefault(); ta.setSelectionRange(s+1,s+1); t.updateStatus(); return;
+  }
+  if(e.key==='Backspace'&&s===en&&s>0){
+    const a=v[s-1], b=v[s];
+    if(PAIRS[a]&&PAIRS[a]===b){ e.preventDefault(); ta.setSelectionRange(s-1,s+1); ins(ta,''); t.render(); return; }
+    const [ls]=lineBounds(v,s); const pre=v.slice(ls,s);
+    if(/^[ ]+$/.test(pre)&&!SET.useTabs&&pre.length%SET.tabSize===0){
+      e.preventDefault(); ta.setSelectionRange(s-SET.tabSize,s); ins(ta,''); t.render(); return;
+    }
+  }
+  setTimeout(()=>t.updateStatus(),0);
+}
+
+/* ── find & replace ─────────────────────────────────────────── */
+function openFind(t,focusRep){
+  t.findBox.classList.add('on');
+  const sel=t.ta.value.slice(t.ta.selectionStart,t.ta.selectionEnd);
+  if(sel&&!sel.includes('\n')) t.q.value=sel;
+  (focusRep?t.rep:t.q).focus(); (focusRep?t.rep:t.q).select();
+  runFind(t,false);
+}
+function runFind(t,jump=true){
+  const q=t.q.value; t.matches=[];
+  if(q){ const v=t.ta.value; let i=0;
+    const lq=q.toLowerCase(), lv=v.toLowerCase();
+    while(true){ const j=lv.indexOf(lq,i); if(j<0)break; t.matches.push(j); i=j+Math.max(1,q.length); if(t.matches.length>5000)break; } }
+  t.mi=t.matches.length?clamp(t.mi,0,t.matches.length-1):-1;
+  t.cnt.textContent=`${t.matches.length?t.mi+1:0} / ${t.matches.length}`;
+  if(jump&&t.mi>=0) gotoMatch(t);
+}
+function clearFindMarks(){}
+function stepFind(t,dir){
+  if(!t.matches.length){ runFind(t,false); if(!t.matches.length) return; t.mi=0; }
+  else t.mi=(t.mi+dir+t.matches.length)%t.matches.length;
+  t.cnt.textContent=`${t.mi+1} / ${t.matches.length}`;
+  gotoMatch(t);
+}
+function gotoMatch(t){
+  const p=t.matches[t.mi]; if(p==null) return;
+  t.ta.focus(); t.ta.setSelectionRange(p,p+t.q.value.length);
+  const ln=t.ta.value.slice(0,p).split('\n').length;
+  const row=t.hl.children[ln-1];
+  if(row&&row.scrollIntoView) row.scrollIntoView({block:'center'});
+  t.updateStatus();
+}
+function replaceOne(t){
+  if(t.mi<0) return stepFind(t,1);
+  const p=t.matches[t.mi];
+  t.ta.setSelectionRange(p,p+t.q.value.length);
+  ins(t.ta,t.rep.value);
+  t.render(); t.ta.dispatchEvent(new Event('input'));
+  runFind(t,false); stepFind(t,0);
+}
+function replaceAll(t){
+  const q=t.q.value; if(!q) return;
+  const v=t.ta.value;
+  const out=v.split(new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'gi')).join(t.rep.value);
+  const n=t.matches.length;
+  t.ta.select(); ins(t.ta,out); t.ta.setSelectionRange(0,0);
+  t.render(); t.ta.dispatchEvent(new Event('input'));
+  toast(`Replaced ${n} occurrence${n===1?'':'s'}`);
+}
+
+/* ── document tools ─────────────────────────────────────────── */
+function reindent(t){
+  const u=unit(), lines=t.ta.value.split('\n');
+  let depth=0; const out=[];
+  for(let raw of lines){
+    const l=raw.trim();
+    if(!l){ out.push(''); continue; }
+    let d=depth;
+    if(/^[}\])]/.test(l)||/^<\//.test(l)) d=Math.max(0,depth-1);
+    out.push(u.repeat(d)+l);
+    const opens=(l.match(/[{[(]/g)||[]).length-(l.match(/[}\])]/g)||[]).length;
+    depth=Math.max(0,d+opens);
+    if(t.lang==='html'){
+      const o=(l.match(/<(?!\/|!)[a-zA-Z][^>]*(?<!\/)>/g)||[]).length;
+      const c=(l.match(/<\/[a-zA-Z][^>]*>/g)||[]).length;
+      const voidT=(l.match(/<(br|hr|img|input|meta|link|source|track|area|base|col|embed|param|wbr)\b[^>]*>/gi)||[]).length;
+      depth=Math.max(0,d+(o-voidT)-c);
+    }
+  }
+  t.ta.select(); ins(t.ta,out.join('\n')); t.ta.setSelectionRange(0,0);
+  t.render(); t.ta.dispatchEvent(new Event('input'));
+  toast('Re-indented');
+}
+function formatDoc(t){
+  const v=t.ta.value;
+  if(ext(TREE[t.id].name)==='json'){
+    try{ const j=JSON.stringify(JSON.parse(v),null,SET.useTabs?'\t':SET.tabSize);
+      t.ta.select(); ins(t.ta,j); t.ta.setSelectionRange(0,0); t.render(); t.ta.dispatchEvent(new Event('input'));
+      return toast('JSON formatted');
+    }catch(e){ return toast('Invalid JSON: '+e.message,'err',4000); }
+  }
+  reindent(t);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   10. media editors
+   ═══════════════════════════════════════════════════════════════ */
+
+function paneShell(key,title,toolsHTML,stageHTML){
+  const pane=makePane(key);
+  pane.innerHTML=`<div class="paneHead"><span>${escAttr(title)}</span><div class="spacer"></div><span data-r="hint" style="letter-spacing:0;text-transform:none;font-size:11px"></span></div>
+  <div class="media"><div class="mstage" data-r="stage">${stageHTML||''}</div><div class="mtools" data-r="tools">${toolsHTML}</div></div>`;
+  return pane;
+}
+
+/* ── image editor ───────────────────────────────────────────── */
+async function openImage(id){
+  const n=TREE[id], key=keyOf('edit',id);
+  const blob=await readBlob(id);
+  const url=URL.createObjectURL(blob);
+  const img=new Image();
+  await new Promise((res,rej)=>{img.onload=res;img.onerror=rej;img.src=url;}).catch(()=>{});
+  const pane=paneShell(key,n.name,`
+    <div class="grp"><label>Rotate</label>
+      <button class="mbtn" data-a="rot-90">⟲ 90°</button><button class="mbtn" data-a="rot90">⟳ 90°</button>
+      <button class="mbtn" data-a="flipH">Flip H</button><button class="mbtn" data-a="flipV">Flip V</button></div>
+    <div class="grp"><label>Size</label>
+      <button class="mbtn" data-a="resize">Resize…</button>
+      <button class="mbtn" data-a="crop">Crop to selection</button>
+      <span class="num" data-r="dims"></span></div>
+    <div class="grp"><label>Bright</label><input type="range" data-f="brightness" min="0" max="200" value="100"><span class="num" data-r="v-brightness">100</span></div>
+    <div class="grp"><label>Contrast</label><input type="range" data-f="contrast" min="0" max="200" value="100"><span class="num" data-r="v-contrast">100</span></div>
+    <div class="grp"><label>Sat</label><input type="range" data-f="saturate" min="0" max="300" value="100"><span class="num" data-r="v-saturate">100</span></div>
+    <div class="grp"><label>Blur</label><input type="range" data-f="blur" min="0" max="20" value="0"><span class="num" data-r="v-blur">0</span></div>
+    <div class="grp"><label>Hue</label><input type="range" data-f="hue-rotate" min="0" max="360" value="0"><span class="num" data-r="v-hue-rotate">0</span></div>
+    <div class="grp"><button class="mbtn" data-a="gray">Grayscale</button><button class="mbtn" data-a="invert">Invert</button><button class="mbtn" data-a="sepia">Sepia</button></div>
+    <div class="grp"><label>Save as</label>
+      <select data-r="fmt" style="background:var(--bg);border:1px solid var(--line2);border-radius:6px;padding:4px 6px">
+        <option value="image/png">PNG</option><option value="image/jpeg">JPEG</option><option value="image/webp">WebP</option>
+      </select>
+      <input type="range" data-r="q" min="10" max="100" value="92" title="Quality"><span class="num" data-r="qv">92</span></div>
+    <div class="grp"><button class="mbtn" data-a="reset">Reset</button>
+      <button class="mbtn pri" data-a="apply">Save to file</button>
+      <button class="mbtn" data-a="saveas">Save as new…</button>
+      <button class="mbtn" data-a="dl">Download</button></div>`,
+    `<div style="position:relative;display:inline-block"><canvas data-r="cv"></canvas><div data-r="marq" style="position:absolute;border:1px dashed #8d93ff;background:#8d93ff1f;display:none;pointer-events:none"></div></div>`);
+  const R=s=>pane.querySelector(`[data-r="${s}"]`);
+  const cv=R('cv'), ctx2=cv.getContext('2d');
+  let base=document.createElement('canvas');
+  base.width=img.naturalWidth||1; base.height=img.naturalHeight||1;
+  base.getContext('2d').drawImage(img,0,0);
+  URL.revokeObjectURL(url);
+
+  const filt={brightness:100,contrast:100,saturate:100,blur:0,'hue-rotate':0,grayscale:0,invert:0,sepia:0};
+  const fstr=()=>`brightness(${filt.brightness}%) contrast(${filt.contrast}%) saturate(${filt.saturate}%) blur(${filt.blur}px) hue-rotate(${filt['hue-rotate']}deg) grayscale(${filt.grayscale}%) invert(${filt.invert}%) sepia(${filt.sepia}%)`;
+  function draw(){
+    cv.width=base.width; cv.height=base.height;
+    ctx2.filter=fstr(); ctx2.clearRect(0,0,cv.width,cv.height); ctx2.drawImage(base,0,0); ctx2.filter='none';
+    R('dims').textContent=`${base.width}×${base.height}`;
+  }
+  function bake(){ const c=document.createElement('canvas');c.width=cv.width;c.height=cv.height;
+    const x=c.getContext('2d');x.filter=fstr();x.drawImage(base,0,0);
+    base=c; Object.assign(filt,{brightness:100,contrast:100,saturate:100,blur:0,'hue-rotate':0,grayscale:0,invert:0,sepia:0});
+    pane.querySelectorAll('input[data-f]').forEach(i=>{const f=i.dataset.f;i.value=filt[f];const v=R('v-'+f);if(v)v.textContent=filt[f];});
+    draw(); }
+  function transform(w,h,fn){ const c=document.createElement('canvas');c.width=w;c.height=h;const x=c.getContext('2d');fn(x);base=c;draw(); }
+  draw();
+
+  /* marquee selection for crop */
+  let sel=null,dragging=false,st=null;
+  const marq=R('marq');
+  cv.addEventListener('mousedown',e=>{const r=cv.getBoundingClientRect();dragging=true;st={x:e.clientX-r.left,y:e.clientY-r.top};marq.style.display='block';});
+  addEventListener('mousemove',e=>{ if(!dragging)return; const r=cv.getBoundingClientRect();
+    const x=clamp(e.clientX-r.left,0,r.width),y=clamp(e.clientY-r.top,0,r.height);
+    const l=Math.min(x,st.x),tp=Math.min(y,st.y),w=Math.abs(x-st.x),h=Math.abs(y-st.y);
+    Object.assign(marq.style,{left:l+'px',top:tp+'px',width:w+'px',height:h+'px'});
+    const k=cv.width/r.width; sel={x:l*k,y:tp*k,w:w*k,h:h*k}; });
+  addEventListener('mouseup',()=>{ if(dragging){dragging=false; if(sel&&(sel.w<3||sel.h<3)){sel=null;marq.style.display='none';}} });
+
+  pane.addEventListener('input',e=>{
+    const f=e.target.dataset.f;
+    if(f){ filt[f]=+e.target.value; R('v-'+f).textContent=e.target.value; draw(); }
+    if(e.target.dataset.r==='q') R('qv').textContent=e.target.value;
+  });
+  pane.addEventListener('click',async e=>{
+    const a=e.target.closest('[data-a]'); if(!a) return;
+    const act=a.dataset.a;
+    if(act==='rot90'||act==='rot-90'){ bake(); const w=base.height,h=base.width;
+      transform(w,h,x=>{x.translate(w/2,h/2);x.rotate((act==='rot90'?90:-90)*Math.PI/180);x.drawImage(base,-base.width/2,-base.height/2);}); }
+    if(act==='flipH'){ bake(); transform(base.width,base.height,x=>{x.translate(base.width,0);x.scale(-1,1);x.drawImage(base,0,0);}); }
+    if(act==='flipV'){ bake(); transform(base.width,base.height,x=>{x.translate(0,base.height);x.scale(1,-1);x.drawImage(base,0,0);}); }
+    if(act==='gray'){ filt.grayscale=filt.grayscale?0:100; draw(); }
+    if(act==='invert'){ filt.invert=filt.invert?0:100; draw(); }
+    if(act==='sepia'){ filt.sepia=filt.sepia?0:100; draw(); }
+    if(act==='crop'){
+      if(!sel) return toast('Drag a box on the image first','info');
+      bake(); const s2={...sel};
+      transform(Math.round(s2.w),Math.round(s2.h),x=>x.drawImage(base,-s2.x,-s2.y));
+      sel=null; marq.style.display='none';
+    }
+    if(act==='resize'){
+      showModal({title:'Resize image',sub:`Currently ${base.width}×${base.height}`,
+        body:`<div class="field"><label>Width (px)</label><input type="text" id="rw" value="${base.width}"></div>
+              <div class="field"><label>Height (px)</label><input type="text" id="rh" value="${base.height}"></div>
+              <div class="srow"><div class="txt"><b>Keep aspect ratio</b></div><div class="sw on" id="rlock"></div></div>`,
+        after:()=>{ const rw=$('#rw'),rh=$('#rh'),lk=$('#rlock'); const ar=base.width/base.height;
+          lk.onclick=()=>lk.classList.toggle('on');
+          rw.oninput=()=>{ if(lk.classList.contains('on')) rh.value=Math.max(1,Math.round((+rw.value||1)/ar)); };
+          rh.oninput=()=>{ if(lk.classList.contains('on')) rw.value=Math.max(1,Math.round((+rh.value||1)*ar)); }; },
+        actions:[{text:'Cancel'},{text:'Resize',cls:'pri',fn:()=>{
+          const w=clamp(parseInt($('#rw').value)||base.width,1,12000), h=clamp(parseInt($('#rh').value)||base.height,1,12000);
+          bake(); const src=base; transform(w,h,x=>{x.imageSmoothingQuality='high';x.drawImage(src,0,0,w,h);});
+        }}]});
+    }
+    if(act==='reset'){ base=document.createElement('canvas'); base.width=img.naturalWidth;base.height=img.naturalHeight;
+      base.getContext('2d').drawImage(img,0,0);
+      Object.assign(filt,{brightness:100,contrast:100,saturate:100,blur:0,'hue-rotate':0,grayscale:0,invert:0,sepia:0});
+      pane.querySelectorAll('input[data-f]').forEach(i=>{i.value=filt[i.dataset.f];R('v-'+i.dataset.f).textContent=filt[i.dataset.f];});
+      draw(); toast('Reset to original','info'); }
+    if(act==='apply'||act==='saveas'||act==='dl'){
+      const fmt=R('fmt').value, q=(+R('q').value)/100;
+      const out=await new Promise(r=>{const c=document.createElement('canvas');c.width=cv.width;c.height=cv.height;
+        const x=c.getContext('2d'); if(fmt==='image/jpeg'){x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);}
+        x.filter=fstr(); x.drawImage(base,0,0); c.toBlob(r,fmt,q);});
+      const newExt=fmt==='image/png'?'png':fmt==='image/jpeg'?'jpg':'webp';
+      if(act==='dl') return saveBlob(out,n.name.replace(/\.[^.]+$/,'')+'.'+newExt);
+      if(act==='saveas'){
+        const nn=mkNode(n.parent,n.name.replace(/\.[^.]+$/,'')+' edited.'+newExt,'file');
+        await writeBlob(nn.id,out); persistTree(); renderTree(); return toast('Saved as '+nn.name);
+      }
+      if(ext(n.name)!==newExt){ n.name=n.name.replace(/\.[^.]+$/,'')+'.'+newExt; n.mime=fmt; sortChildren(n.parent); }
+      await writeBlob(n.id,out); persistTree(); renderTree(); renderTabs(); toast('Saved '+n.name);
+    }
+  });
+  tabs.push({key,id,mode:'edit',pane}); setActive(key);
+}
+
+/* ── audio editor ───────────────────────────────────────────── */
+async function openAudio(id){
+  const n=TREE[id], key=keyOf('edit',id);
+  const blob=await readBlob(id);
+  const pane=paneShell(key,n.name,`
+    <div class="grp"><button class="mbtn pri" data-a="play">▶ Play</button><button class="mbtn" data-a="stop">■ Stop</button>
+      <span class="num" data-r="time">0.00 s</span></div>
+    <div class="grp"><label>Selection</label><span class="num" data-r="selinfo" style="min-width:150px">whole file</span>
+      <button class="mbtn" data-a="selall">Select all</button><button class="mbtn" data-a="trim">Trim to selection</button></div>
+    <div class="grp"><label>Gain</label><input type="range" data-r="gain" min="0" max="300" value="100"><span class="num" data-r="gv">100%</span>
+      <button class="mbtn" data-a="normalize">Normalise</button></div>
+    <div class="grp"><label>Fade</label><button class="mbtn" data-a="fadein">In</button><button class="mbtn" data-a="fadeout">Out</button>
+      <button class="mbtn" data-a="reverse">Reverse</button></div>
+    <div class="grp"><label>Speed</label><input type="range" data-r="rate" min="25" max="300" value="100"><span class="num" data-r="rv">1.00×</span>
+      <button class="mbtn" data-a="applyrate">Apply</button></div>
+    <div class="grp"><button class="mbtn" data-a="reset">Reset</button>
+      <button class="mbtn pri" data-a="savewav">Save as WAV…</button><button class="mbtn" data-a="dl">Download WAV</button></div>`,
+    `<div class="wavewrap" style="width:100%"><canvas id="wave" data-r="wave"></canvas></div>`);
+  const R=s=>pane.querySelector(`[data-r="${s}"]`);
+  R('hint').textContent='Decoded in-browser · exports uncompressed WAV';
+  const AC=window.AudioContext||window.webkitAudioContext;
+  const ac=new AC();
+  let buf=null, orig=null, src=null, playing=false, startT=0, offT=0;
+  let selA=0, selB=0;
+  try{ buf=await ac.decodeAudioData(await blob.arrayBuffer()); orig=buf; }
+  catch(e){ R('stage').innerHTML=`<div class="empty">Couldn't decode this audio (${escAttr(n.name)}). The browser may not support the codec.</div>`; }
+
+  const wave=R('wave'), wctx=wave&&wave.getContext('2d');
+  function drawWave(){
+    if(!buf||!wave) return;
+    const dpr=devicePixelRatio||1;
+    const w=wave.clientWidth||600, h=118;
+    wave.width=w*dpr; wave.height=h*dpr; wctx.setTransform(dpr,0,0,dpr,0,0);
+    wctx.clearRect(0,0,w,h);
+    const d=buf.getChannelData(0), step=Math.max(1,Math.floor(d.length/w));
+    // selection
+    if(selB>selA){ wctx.fillStyle='#8d93ff26'; const x1=selA/buf.duration*w, x2=selB/buf.duration*w; wctx.fillRect(x1,0,x2-x1,h); }
+    wctx.strokeStyle='#5fd0a8'; wctx.beginPath();
+    for(let i=0;i<w;i++){
+      let mn=1,mx=-1;
+      for(let j=0;j<step;j++){ const v=d[i*step+j]||0; if(v<mn)mn=v; if(v>mx)mx=v; }
+      wctx.moveTo(i+.5,h/2-mx*h/2*.92); wctx.lineTo(i+.5,h/2-mn*h/2*.92);
+    }
+    wctx.stroke();
+    wctx.strokeStyle='#ffffff14'; wctx.beginPath(); wctx.moveTo(0,h/2); wctx.lineTo(w,h/2); wctx.stroke();
+    if(playing){ const p=(ac.currentTime-startT+offT)/buf.duration*w; wctx.strokeStyle='#f0b45c'; wctx.beginPath(); wctx.moveTo(p,0); wctx.lineTo(p,h); wctx.stroke(); }
+    R('selinfo').textContent=selB>selA?`${selA.toFixed(2)}s → ${selB.toFixed(2)}s (${(selB-selA).toFixed(2)}s)`:`whole file · ${buf.duration.toFixed(2)}s`;
+  }
+  if(wave){
+    let dg=false,anchor=0;
+    const posOf=e=>{const r=wave.getBoundingClientRect();return clamp((e.clientX-r.left)/r.width,0,1)*buf.duration;};
+    wave.addEventListener('mousedown',e=>{dg=true;anchor=posOf(e);selA=selB=anchor;drawWave();});
+    addEventListener('mousemove',e=>{if(!dg||!buf)return;const p=posOf(e);selA=Math.min(anchor,p);selB=Math.max(anchor,p);drawWave();});
+    addEventListener('mouseup',()=>{if(dg){dg=false;if(selB-selA<0.01){selA=selB=0;}drawWave();}});
+    new ResizeObserver(drawWave).observe(wave);
+  }
+  drawWave();
+  let raf=null;
+  function tick(){ if(!playing)return; R('time').textContent=(ac.currentTime-startT+offT).toFixed(2)+' s'; drawWave(); raf=requestAnimationFrame(tick); }
+
+  function stop(){ if(src){try{src.stop()}catch(e){}} src=null; playing=false; cancelAnimationFrame(raf); drawWave(); }
+  function play(){
+    if(!buf) return; stop();
+    src=ac.createBufferSource(); src.buffer=buf;
+    const g=ac.createGain(); g.gain.value=(+R('gain').value)/100;
+    src.playbackRate.value=(+R('rate').value)/100;
+    src.connect(g); g.connect(ac.destination);
+    offT=selB>selA?selA:0;
+    const dur=selB>selA?selB-selA:undefined;
+    src.start(0,offT,dur); startT=ac.currentTime; playing=true;
+    src.onended=()=>{playing=false;cancelAnimationFrame(raf);drawWave();};
+    ac.resume(); tick();
+  }
+  function rebuild(fn){
+    const ch=buf.numberOfChannels, len=buf.length;
+    const out=ac.createBuffer(ch,len,buf.sampleRate);
+    for(let c=0;c<ch;c++){ const s=buf.getChannelData(c), d=out.getChannelData(c);
+      for(let i=0;i<len;i++) d[i]=fn(s[i],i,len,c); }
+    buf=out; drawWave();
+  }
+  const sIdx=()=>[Math.floor((selB>selA?selA:0)*buf.sampleRate),Math.floor((selB>selA?selB:buf.duration)*buf.sampleRate)];
+
+  pane.addEventListener('input',e=>{
+    if(e.target.dataset.r==='gain') R('gv').textContent=e.target.value+'%';
+    if(e.target.dataset.r==='rate') R('rv').textContent=((+e.target.value)/100).toFixed(2)+'×';
+  });
+  pane.addEventListener('click',async e=>{
+    const a=e.target.closest('[data-a]'); if(!a||!buf) return;
+    const act=a.dataset.a;
+    if(act==='play') play();
+    if(act==='stop') stop();
+    if(act==='selall'){ selA=0; selB=buf.duration; drawWave(); }
+    if(act==='trim'){
+      if(selB<=selA) return toast('Drag across the waveform to select a range','info');
+      const [i0,i1]=sIdx(), len=i1-i0;
+      const out=ac.createBuffer(buf.numberOfChannels,len,buf.sampleRate);
+      for(let c=0;c<buf.numberOfChannels;c++) out.getChannelData(c).set(buf.getChannelData(c).subarray(i0,i1));
+      buf=out; selA=selB=0; drawWave(); toast('Trimmed');
+    }
+    if(act==='normalize'){
+      let peak=0; for(let c=0;c<buf.numberOfChannels;c++){const d=buf.getChannelData(c);for(let i=0;i<d.length;i++)peak=Math.max(peak,Math.abs(d[i]));}
+      if(peak<1e-6) return toast('Silent track','info');
+      const k=0.98/peak; rebuild(v=>v*k); toast(`Normalised (+${(20*Math.log10(k)).toFixed(1)} dB)`);
+    }
+    if(act==='fadein'||act==='fadeout'){
+      const [i0,i1]=sIdx(), len=i1-i0;
+      rebuild((v,i)=>{ if(i<i0||i>=i1) return v; const t=(i-i0)/len; return v*(act==='fadein'?t:1-t); });
+      toast('Fade applied');
+    }
+    if(act==='reverse'){
+      const out=ac.createBuffer(buf.numberOfChannels,buf.length,buf.sampleRate);
+      for(let c=0;c<buf.numberOfChannels;c++){const s=buf.getChannelData(c),d=out.getChannelData(c);
+        for(let i=0;i<s.length;i++)d[i]=s[s.length-1-i];}
+      buf=out; drawWave(); toast('Reversed');
+    }
+    if(act==='applyrate'){
+      const r=(+R('rate').value)/100; if(r===1) return;
+      const len=Math.floor(buf.length/r);
+      const out=ac.createBuffer(buf.numberOfChannels,len,buf.sampleRate);
+      for(let c=0;c<buf.numberOfChannels;c++){const s=buf.getChannelData(c),d=out.getChannelData(c);
+        for(let i=0;i<len;i++){const p=i*r,i0=Math.floor(p),f=p-i0;d[i]=(s[i0]||0)*(1-f)+(s[i0+1]||0)*f;}}
+      buf=out; R('rate').value=100; R('rv').textContent='1.00×'; drawWave(); toast('Speed baked in');
+    }
+    if(act==='reset'){ buf=orig; selA=selB=0; drawWave(); toast('Reset to original','info'); }
+    if(act==='savewav'||act==='dl'){
+      const g=(+R('gain').value)/100;
+      const wav=bufferToWav(buf,g);
+      if(act==='dl') return saveBlob(wav,n.name.replace(/\.[^.]+$/,'')+'.wav');
+      const nn=mkNode(n.parent,n.name.replace(/\.[^.]+$/,'')+' edited.wav','file');
+      await writeBlob(nn.id,wav); persistTree(); renderTree(); toast('Saved as '+nn.name);
+    }
+  });
+  tabs.push({key,id,mode:'edit',pane,cleanup:()=>{stop();try{ac.close()}catch(e){}}});
+  setActive(key);
+}
+function bufferToWav(buf,gain=1){
+  const ch=buf.numberOfChannels, len=buf.length, sr=buf.sampleRate;
+  const ab=new ArrayBuffer(44+len*ch*2), dv=new DataView(ab);
+  const w=(o,s)=>{for(let i=0;i<s.length;i++)dv.setUint8(o+i,s.charCodeAt(i));};
+  w(0,'RIFF'); dv.setUint32(4,36+len*ch*2,true); w(8,'WAVE'); w(12,'fmt ');
+  dv.setUint32(16,16,true); dv.setUint16(20,1,true); dv.setUint16(22,ch,true);
+  dv.setUint32(24,sr,true); dv.setUint32(28,sr*ch*2,true); dv.setUint16(32,ch*2,true); dv.setUint16(34,16,true);
+  w(36,'data'); dv.setUint32(40,len*ch*2,true);
+  let o=44;
+  const chans=[]; for(let c=0;c<ch;c++)chans.push(buf.getChannelData(c));
+  for(let i=0;i<len;i++) for(let c=0;c<ch;c++){
+    let v=clamp(chans[c][i]*gain,-1,1);
+    dv.setInt16(o,v<0?v*0x8000:v*0x7fff,true); o+=2;
+  }
+  return new Blob([ab],{type:'audio/wav'});
+}
+
+/* ── video tools ────────────────────────────────────────────── */
+async function openVideo(id){
+  const n=TREE[id], key=keyOf('edit',id);
+  const blob=await readBlob(id);
+  const url=URL.createObjectURL(blob);
+  const pane=paneShell(key,n.name,`
+    <div class="grp"><button class="mbtn pri" data-a="pp">▶ Play</button>
+      <button class="mbtn" data-a="b1">◀ frame</button><button class="mbtn" data-a="f1">frame ▶</button>
+      <span class="num" data-r="tc" style="min-width:120px">0.00 / 0.00</span></div>
+    <div class="grp"><label>Seek</label><input type="range" data-r="seek" min="0" max="1000" value="0" style="width:200px"></div>
+    <div class="grp"><label>Marks</label>
+      <button class="mbtn" data-a="markin">Set in</button><button class="mbtn" data-a="markout">Set out</button>
+      <span class="num" data-r="marks" style="min-width:130px">—</span>
+      <button class="mbtn" data-a="loop">Loop range</button><button class="mbtn" data-a="clearmarks">Clear</button></div>
+    <div class="grp"><label>Speed</label><input type="range" data-r="rate" min="25" max="250" value="100"><span class="num" data-r="rv">1.00×</span>
+      <label style="margin-left:8px">Volume</label><input type="range" data-r="vol" min="0" max="100" value="100"></div>
+    <div class="grp"><button class="mbtn" data-a="still">Grab frame → PNG file</button>
+      <button class="mbtn" data-a="stilldl">Download frame</button>
+      <button class="mbtn" data-a="poster">Set as app icon poster</button></div>
+    <div class="grp"><button class="mbtn" data-a="audio">Extract audio → WAV</button>
+      <button class="mbtn" data-a="dl">Download video</button></div>`,
+    `<video data-r="v" controls playsinline style="max-height:100%"></video>`);
+  const R=s=>pane.querySelector(`[data-r="${s}"]`);
+  R('hint').textContent='Trimming marks are non-destructive — re-encoding needs a desktop tool';
+  const v=R('v'); v.src=url;
+  let inP=null,outP=null,looping=false;
+  const fps=25;
+  v.addEventListener('loadedmetadata',()=>{ R('tc').textContent=`0.00 / ${v.duration.toFixed(2)}`; });
+  v.addEventListener('timeupdate',()=>{
+    R('tc').textContent=`${v.currentTime.toFixed(2)} / ${(v.duration||0).toFixed(2)}`;
+    R('seek').value=v.duration?Math.round(v.currentTime/v.duration*1000):0;
+    if(looping&&inP!=null&&outP!=null&&v.currentTime>=outP) v.currentTime=inP;
+  });
+  R('seek').addEventListener('input',e=>{ if(v.duration) v.currentTime=(+e.target.value)/1000*v.duration; });
+  R('rate').addEventListener('input',e=>{ v.playbackRate=(+e.target.value)/100; R('rv').textContent=v.playbackRate.toFixed(2)+'×'; });
+  R('vol').addEventListener('input',e=>{ v.volume=(+e.target.value)/100; });
+  const marks=()=>R('marks').textContent=(inP==null&&outP==null)?'—':`${inP==null?'0.00':inP.toFixed(2)} → ${outP==null?'end':outP.toFixed(2)}`;
+  function grab(){
+    const c=document.createElement('canvas'); c.width=v.videoWidth; c.height=v.videoHeight;
+    c.getContext('2d').drawImage(v,0,0); return c;
+  }
+  pane.addEventListener('click',async e=>{
+    const a=e.target.closest('[data-a]'); if(!a) return;
+    const act=a.dataset.a;
+    if(act==='pp'){ v.paused?v.play():v.pause(); a.textContent=v.paused?'▶ Play':'❚❚ Pause'; }
+    if(act==='b1'){ v.pause(); v.currentTime=Math.max(0,v.currentTime-1/fps); }
+    if(act==='f1'){ v.pause(); v.currentTime=Math.min(v.duration,v.currentTime+1/fps); }
+    if(act==='markin'){ inP=v.currentTime; marks(); }
+    if(act==='markout'){ outP=v.currentTime; marks(); }
+    if(act==='clearmarks'){ inP=outP=null; looping=false; marks(); }
+    if(act==='loop'){ if(inP==null||outP==null) return toast('Set both in and out first','info');
+      looping=!looping; a.classList.toggle('pri',looping); if(looping){v.currentTime=inP;v.play();} }
+    if(act==='still'||act==='stilldl'||act==='poster'){
+      if(!v.videoWidth) return toast('Video not ready yet','info');
+      const c=grab();
+      const png=await new Promise(r=>c.toBlob(r,'image/png'));
+      if(act==='stilldl') return saveBlob(png,n.name.replace(/\.[^.]+$/,'')+'_'+v.currentTime.toFixed(2)+'.png');
+      const nn=mkNode(n.parent,n.name.replace(/\.[^.]+$/,'')+`_${v.currentTime.toFixed(2)}.png`,'file');
+      await writeBlob(nn.id,png); persistTree(); renderTree(); toast('Frame saved as '+nn.name);
+    }
+    if(act==='audio'){
+      try{
+        const AC=window.AudioContext||window.webkitAudioContext; const ac=new AC();
+        const b=await ac.decodeAudioData(await blob.arrayBuffer());
+        const nn=mkNode(n.parent,n.name.replace(/\.[^.]+$/,'')+' audio.wav','file');
+        await writeBlob(nn.id,bufferToWav(b)); persistTree(); renderTree(); ac.close();
+        toast('Audio extracted to '+nn.name);
+      }catch(err){ toast("Couldn't decode this container's audio",'err',4000); }
+    }
+    if(act==='dl') saveBlob(blob,n.name);
+  });
+  tabs.push({key,id,mode:'edit',pane,cleanup:()=>{try{v.pause()}catch(e){};URL.revokeObjectURL(url);}});
+  setActive(key);
+}
+
+/* ── unknown binary ─────────────────────────────────────────── */
+async function openBinary(id){
+  const n=TREE[id], key=keyOf('edit',id);
+  const blob=await readBlob(id);
+  const pane=makePane(key);
+  const isPdf=ext(n.name)==='pdf';
+  const url=URL.createObjectURL(blob);
+  pane.innerHTML=`<div class="paneHead"><span>${escAttr(n.name)}</span><div class="spacer"></div>
+    <button data-a="dl">Download</button><button data-a="astext">Open as text</button></div>
+    ${isPdf?`<iframe class="frame" src="${url}"></iframe>`
+      :`<div class="media"><div class="mstage"><div class="empty" style="text-align:center">
+        ${ico('file')}<br><b>${escAttr(n.name)}</b><br>${bytes(blob.size)} · ${escAttr(n.mime||'unknown type')}<br>
+        No editor for this format. You can still download it, or force it open as text.</div></div></div>`}`;
+  pane.addEventListener('click',e=>{
+    const a=e.target.closest('[data-a]'); if(!a) return;
+    if(a.dataset.a==='dl') saveBlob(blob,n.name);
+    if(a.dataset.a==='astext'){ closeTabKey(key); openText(id); }
+  });
+  tabs.push({key,id,mode:'edit',pane,cleanup:()=>URL.revokeObjectURL(url)});
+  setActive(key);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   11. downloads + ZIP   12. run / preview   13. app runtime
+   ═══════════════════════════════════════════════════════════════ */
+
+function saveBlob(blob,name){
+  const u=URL.createObjectURL(blob), a=document.createElement('a');
+  a.href=u; a.download=name; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(u),4000);
+}
+async function downloadFile(id){ const n=TREE[id]; saveBlob(await readBlob(id),n.name); toast('Downloading '+n.name); }
+
+/* CRC32 */
+const CRCT=(()=>{const t=new Uint32Array(256);
+  for(let i=0;i<256;i++){let c=i;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[i]=c>>>0;}return t;})();
+function crc32(u8){let c=0xFFFFFFFF;for(let i=0;i<u8.length;i++)c=CRCT[(c^u8[i])&0xFF]^(c>>>8);return (c^0xFFFFFFFF)>>>0;}
+function dosTime(d){return ((d.getHours()<<11)|(d.getMinutes()<<5)|(d.getSeconds()/2))&0xFFFF;}
+function dosDate(d){return (((d.getFullYear()-1980)<<9)|((d.getMonth()+1)<<5)|d.getDate())&0xFFFF;}
+
+/** Build a ZIP (stored, no compression) from [{path, blob}] */
+async function makeZip(entries){
+  const parts=[], central=[]; let offset=0;
+  const enc=new TextEncoder();
+  for(const e of entries){
+    const nameBytes=enc.encode(e.path);
+    const data=new Uint8Array(await e.blob.arrayBuffer());
+    const crc=crc32(data), d=new Date(e.date||Date.now());
+    const lh=new ArrayBuffer(30), lv=new DataView(lh);
+    lv.setUint32(0,0x04034b50,true); lv.setUint16(4,20,true); lv.setUint16(6,0x0800,true);
+    lv.setUint16(8,0,true); lv.setUint16(10,dosTime(d),true); lv.setUint16(12,dosDate(d),true);
+    lv.setUint32(14,crc,true); lv.setUint32(18,data.length,true); lv.setUint32(22,data.length,true);
+    lv.setUint16(26,nameBytes.length,true); lv.setUint16(28,0,true);
+    parts.push(new Uint8Array(lh),nameBytes,data);
+    const ch=new ArrayBuffer(46), cv=new DataView(ch);
+    cv.setUint32(0,0x02014b50,true); cv.setUint16(4,20,true); cv.setUint16(6,20,true);
+    cv.setUint16(8,0x0800,true); cv.setUint16(10,0,true);
+    cv.setUint16(12,dosTime(d),true); cv.setUint16(14,dosDate(d),true);
+    cv.setUint32(16,crc,true); cv.setUint32(20,data.length,true); cv.setUint32(24,data.length,true);
+    cv.setUint16(28,nameBytes.length,true); cv.setUint32(42,offset,true);
+    central.push(new Uint8Array(ch),nameBytes);
+    offset+=30+nameBytes.length+data.length;
+  }
+  const cSize=central.reduce((a,b)=>a+b.length,0);
+  const eo=new ArrayBuffer(22), ev=new DataView(eo);
+  ev.setUint32(0,0x06054b50,true); ev.setUint16(8,entries.length,true); ev.setUint16(10,entries.length,true);
+  ev.setUint32(12,cSize,true); ev.setUint32(16,offset,true);
+  return new Blob([...parts,...central,new Uint8Array(eo)],{type:'application/zip'});
+}
+async function downloadZip(id){
+  const n=TREE[id];
+  const files=collectFiles(id);
+  if(!files.length) return toast('That folder is empty','info');
+  toast(`Packing ${files.length} files…`,'info',1500);
+  const entries=[];
+  for(const f of files) entries.push({path:f.path,blob:await readBlob(f.node.id),date:f.node.mtime});
+  saveBlob(await makeZip(entries),(id==='root'?'workspace':n.name)+'.zip');
+  toast('ZIP ready');
+}
+
+/* ═══ run a JS file at root, with a console ═════════════════ */
+function runScript(id){
+  const n=TREE[id], key=keyOf('console',id);
+  let pane=panesEl.querySelector(`.pane[data-key="${CSS.escape(key)}"]`);
+  if(!pane){
+    pane=makePane(key);
+    pane.innerHTML=`<div class="paneHead"><span>Run — ${escAttr(n.name)}</span><div class="spacer"></div>
+      <button data-a="rerun">Run again</button><button data-a="clear">Clear</button></div>
+      <div class="con" data-r="con"></div>
+      <div class="conin"><span>›</span><input data-r="in" placeholder="Evaluate an expression in the host scope"></div>`;
+    const con=pane.querySelector('[data-r="con"]');
+    pane.addEventListener('click',e=>{
+      const a=e.target.closest('[data-a]'); if(!a) return;
+      if(a.dataset.a==='clear') con.innerHTML='';
+      if(a.dataset.a==='rerun') execFile(id,con);
+    });
+    const inp=pane.querySelector('[data-r="in"]');
+    const hist=[]; let hi=0;
+    inp.addEventListener('keydown',e=>{
+      e.stopPropagation();
+      if(e.key==='Enter'){
+        const src=inp.value.trim(); if(!src) return;
+        hist.push(src); hi=hist.length; inp.value='';
+        conLine(con,'log',src);
+        try{ const r=(0,eval)(src); conLine(con,'ret',fmtVal(r)); if(r&&r.then) r.then(v=>conLine(con,'ret','↩ '+fmtVal(v)),err=>conLine(con,'err',String(err))); }
+        catch(err){ conLine(con,'err',err&&err.stack?err.stack:String(err)); }
+      }
+      if(e.key==='ArrowUp'&&hi>0){ hi--; inp.value=hist[hi]||''; }
+      if(e.key==='ArrowDown'){ hi=Math.min(hist.length,hi+1); inp.value=hist[hi]||''; }
+    });
+    tabs.push({key,id,mode:'console',pane});
+  }
+  setActive(key);
+  execFile(id,pane.querySelector('[data-r="con"]'));
+}
+function conLine(con,cls,text){
+  const d=document.createElement('div'); d.className='cline '+cls; d.textContent=text;
+  con.appendChild(d); con.scrollTop=con.scrollHeight;
+  while(con.children.length>1200) con.firstChild.remove();
+}
+function fmtVal(v){
+  if(v===undefined)return 'undefined'; if(v===null)return 'null';
+  if(typeof v==='string')return v;
+  if(typeof v==='function')return v.toString().split('\n')[0].slice(0,140);
+  if(v instanceof Error)return v.stack||String(v);
+  if(v instanceof Element)return '<'+v.tagName.toLowerCase()+'>';
+  try{ return JSON.stringify(v,(k,val)=>typeof val==='bigint'?String(val):val,2); }catch(e){ return String(v); }
+}
+async function execFile(id,con){
+  const n=TREE[id];
+  const t=tabs.find(t=>t.id===id&&t.mode==='edit'); if(t&&t.flush) await t.flush();
+  const code=await readText(id);
+  conLine(con,'sys','▶ '+pathOf(id)+' — '+new Date().toLocaleTimeString());
+  const orig={log:console.log,warn:console.warn,error:console.error,info:console.info,debug:console.debug};
+  const wrap=(k,cls)=>(...a)=>{ conLine(con,cls,a.map(fmtVal).join(' ')); orig[k].apply(console,a); };
+  console.log=wrap('log','log'); console.info=wrap('info','info');
+  console.warn=wrap('warn','warn'); console.error=wrap('error','err'); console.debug=wrap('debug','log');
+  const onErr=ev=>conLine(con,'err',(ev.error&&ev.error.stack)||ev.message||'Unknown error');
+  const onRej=ev=>conLine(con,'err','Unhandled rejection: '+fmtVal(ev.reason));
+  addEventListener('error',onErr); addEventListener('unhandledrejection',onRej);
+  const restore=()=>{ Object.assign(console,orig); removeEventListener('error',onErr); removeEventListener('unhandledrejection',onRej); };
+  try{
+    const fn=new Function('__file__','__dir__',code);
+    const out=fn.call(window,pathOf(id),pathOf(TREE[id].parent));
+    if(out&&typeof out.then==='function'){
+      out.then(v=>{ if(v!==undefined)conLine(con,'ret',fmtVal(v)); conLine(con,'sys','■ finished'); restore(); },
+               e=>{ conLine(con,'err',(e&&e.stack)||String(e)); conLine(con,'sys','■ failed'); restore(); });
+      return;
+    }
+    if(out!==undefined) conLine(con,'ret',fmtVal(out));
+    conLine(con,'sys','■ finished');
+  }catch(e){ conLine(con,'err',(e&&e.stack)||String(e)); conLine(con,'sys','■ failed'); }
+  setTimeout(restore,60);
+}
+
+/* ═══ host bridge exposed to running apps ═══════════════════ */
+const HOSTGLOBALS={};
+const HOSTAPI={};
+const NIMBUS={
+  /** Nimbus.setGlobal('THEME',{...}) — appears inside apps as a plain global */
+  setGlobal(name,value){ HOSTGLOBALS[name]=value; return value; },
+  /** Nimbus.expose('doThing', fn) — apps call it as `await Host.doThing(...)` */
+  expose(name,fn){ HOSTAPI[name]=fn; return fn; },
+  globals:HOSTGLOBALS, api:HOSTAPI,
+  get tree(){ return TREE; }, saveToCache, loadFromCache,
+};
+window.Nimbus=NIMBUS;
+
+/* default host API — `root` is bound per running app */
+function bindHostAPI(rootId){
+  const rel=p=>resolvePath(rootId,p);
+  return {
+    async readFile(p){ const n=rel(p); if(!n||n.type!=='file') return null; return readText(n.id); },
+    async readFileBytes(p){ const n=rel(p); if(!n||n.type!=='file') return null; return new Uint8Array(await (await readBlob(n.id)).arrayBuffer()); },
+    async readFileURL(p){ const n=rel(p); if(!n||n.type!=='file') return null; return URL.createObjectURL(await readBlob(n.id)); },
+    async writeFile(p,content,mime){
+      const parts=String(p).replace(/^\//,'').split('/'), name=parts.pop();
+      let parent=rootId;
+      for(const d of parts){ let hit=children(parent).find(c=>c.type==='folder'&&c.name===d); if(!hit) hit=mkNode(parent,d,'folder'); parent=hit.id; }
+      let n=children(parent).find(c=>c.name===name&&c.type==='file');
+      if(!n) n=mkNode(parent,name,'file');
+      const blob=content instanceof Blob?content:new Blob([content],{type:mime||mimeOf(name)});
+      await writeBlob(n.id,blob); persistTree(); renderTree(); return pathOf(n.id);
+    },
+    async deleteFile(p){ const n=rel(p); if(!n) return false; await delNode(n.id); renderTree(); return true; },
+    async listDir(p){ const n=p?rel(p):TREE[rootId]; if(!n||n.type!=='folder') return [];
+      return children(n.id).map(c=>({name:c.name,type:c.type,size:c.size||0,isApp:!!c.isApp})); },
+    async exists(p){ return !!rel(p); },
+    async saveToCache(k,v,e){ return saveToCache('app:'+rootId+':'+k,v,e); },
+    async loadFromCache(k,e){ return loadFromCache('app:'+rootId+':'+k,e); },
+    async notify(msg,type){ toast(String(msg),type==='err'?'err':type==='info'?'info':'ok'); return true; },
+    async close(){ closeRunner(); return true; },
+    async setTitle(t){ $('#runName').textContent=String(t); return true; },
+    async apps(){ return listApps().map(a=>({name:a.name,icon:a.icon||'grid'})); },
+  };
+}
+let CURRENT_HOST=null;
+addEventListener('message',async e=>{
+  const d=e.data;
+  if(!d||d.__nimbusRPC!=='call') return;
+  const reply=(ok,value)=>{ try{ e.source.postMessage({__nimbusRPC:'reply',id:d.id,ok,value},'*'); }catch(_){} };
+  const api=Object.assign({},CURRENT_HOST||{},HOSTAPI);
+  const fn=api[d.fn];
+  if(typeof fn!=='function') return reply(false,'No host function named "'+d.fn+'"');
+  try{ reply(true,await fn(...(d.args||[]))); }
+  catch(err){ reply(false,String(err&&err.message||err)); }
+});
+function bridgeScript(rootId){
+  const names=Object.keys(HOSTAPI).concat(Object.keys(bindHostAPI(rootId)));
+  return `<script>(function(){
+var G=${JSON.stringify(HOSTGLOBALS)};for(var k in G){try{window[k]=G[k];}catch(e){}}
+window.HOST_GLOBALS=G;
+var seq=0,waiting={};
+addEventListener('message',function(e){var d=e.data;if(d&&d.__nimbusRPC==='reply'&&waiting[d.id]){var w=waiting[d.id];delete waiting[d.id];d.ok?w[0](d.value):w[1](new Error(d.value));}});
+function call(fn,args){return new Promise(function(res,rej){var id=++seq;waiting[id]=[res,rej];parent.postMessage({__nimbusRPC:'call',id:id,fn:fn,args:args},'*');});}
+var H={call:function(n){return call(n,[].slice.call(arguments,1));}};
+${JSON.stringify([...new Set(names)])}.forEach(function(n){H[n]=function(){return call(n,[].slice.call(arguments));};});
+window.Host=H;
+})();<\/script>`;
+}
+
+/* ═══ asset resolution ══════════════════════════════════════ */
+const SKIP=/^(https?:|data:|blob:|about:|mailto:|tel:|javascript:|#|\/\/)/i;
+async function replaceAsync(str,re,fn){
+  const jobs=[]; str.replace(re,(...a)=>{ jobs.push(fn(...a)); return ''; });
+  const vals=await Promise.all(jobs); let i=0;
+  return str.replace(re,()=>vals[i++]);
+}
+function makeResolver(rootId){
+  const urls=new Map(), created=[];
+  async function asset(p,fromFolder,depth=0){
+    if(!p||SKIP.test(p.trim())) return null;
+    const clean=p.trim().split('#')[0].split('?')[0];
+    if(!clean) return null;
+    const startsRoot=clean.startsWith('/');
+    const n=resolvePath(startsRoot?rootId:fromFolder,clean)||resolvePath(rootId,clean);
+    if(!n||n.type!=='file') return null;
+    const cacheKey=n.id+':'+depth;
+    if(urls.has(n.id)) return urls.get(n.id);
+    let blob=await readBlob(n.id);
+    const e=ext(n.name);
+    if(depth<6&&(e==='css'||e==='scss')){
+      let css=await blob.text(); css=await rewriteCSS(css,n.parent,depth+1);
+      blob=new Blob([css],{type:'text/css'});
+    } else if(depth<6&&['js','mjs'].includes(e)){
+      let js=await blob.text(); js=await rewriteJS(js,n.parent,depth+1);
+      blob=new Blob([js],{type:'text/javascript'});
+    }
+    const u=URL.createObjectURL(blob);
+    urls.set(n.id,u); created.push(u);
+    return u;
+  }
+  async function rewriteCSS(css,folder,depth){
+    css=await replaceAsync(css,/url\(\s*(['"]?)([^'")]+)\1\s*\)/gi,async(m,q,p)=>{
+      const u=await asset(p,folder,depth); return u?`url("${u}")`:m; });
+    css=await replaceAsync(css,/@import\s+(['"])([^'"]+)\1/gi,async(m,q,p)=>{
+      const u=await asset(p,folder,depth); return u?`@import "${u}"`:m; });
+    return css;
+  }
+  async function rewriteJS(js,folder,depth){
+    return replaceAsync(js,/((?:^|[\s;}])(?:import|export)[\s\S]{0,200}?from\s*|(?:^|[\s;{(=,])import\s*\(\s*)(['"])([^'"]+)\2/g,
+      async(m,head,q,p)=>{ const u=await asset(p,folder,depth); return u?head+q+u+q:m; });
+  }
+  async function rewriteHTML(html,folder){
+    // inline <style> blocks
+    html=await replaceAsync(html,/(<style\b[^>]*>)([\s\S]*?)(<\/style>)/gi,async(m,a,body,b)=>a+await rewriteCSS(body,folder,1)+b);
+    // classic <script> bodies get import rewriting too
+    html=await replaceAsync(html,/(<script\b(?![^>]*\bsrc=)[^>]*>)([\s\S]*?)(<\/script>)/gi,async(m,a,body,b)=>a+await rewriteJS(body,folder,1)+b);
+    // srcset
+    html=await replaceAsync(html,/(\ssrcset\s*=\s*)(["'])([^"']*)\2/gi,async(m,head,q,val)=>{
+      const parts=await Promise.all(val.split(',').map(async seg=>{
+        const bits=seg.trim().split(/\s+/); const u=await asset(bits[0],folder,1);
+        if(u) bits[0]=u; return bits.join(' ');
+      }));
+      return head+q+parts.join(', ')+q;
+    });
+    // src / href / poster / data
+    html=await replaceAsync(html,/(\s(?:src|href|poster|data|xlink:href)\s*=\s*)(["'])([^"']*)\2/gi,async(m,head,q,val)=>{
+      const u=await asset(val,folder,1); return u?head+q+u+q:m; });
+    // style="... url(...)"
+    html=await replaceAsync(html,/(\sstyle\s*=\s*)(["'])([^"']*url\([^"']*)\2/gi,async(m,head,q,val)=>
+      head+q+(await rewriteCSS(val,folder,1))+q);
+    return html;
+  }
+  return {asset,rewriteHTML,rewriteCSS,rewriteJS,revoke(){created.forEach(u=>URL.revokeObjectURL(u));}};
+}
+
+/* ═══ service-worker virtual filesystem (preferred) ═════════ */
+const SW_SRC=`
+const M=new Map();
+self.addEventListener('install',()=>self.skipWaiting());
+self.addEventListener('activate',e=>e.waitUntil(self.clients.claim()));
+self.addEventListener('message',e=>{
+  const d=e.data||{};
+  if(d.t==='mount'){M.set(d.token,d.files);}
+  if(d.t==='unmount'){M.delete(d.token);}
+  if(e.ports&&e.ports[0])e.ports[0].postMessage({ok:true});
+});
+self.addEventListener('fetch',e=>{
+  const u=new URL(e.request.url);
+  const m=u.pathname.match(/__nimbus__\\/([^/]+)\\/(.*)$/);
+  if(!m)return;
+  const files=M.get(m[1]);if(!files)return;
+  let p=decodeURIComponent(m[2]||'')||'index.html';
+  let b=files[p]||files[p.replace(/^\\//,'')]||files[p+'/index.html']||files['index.html'];
+  if(!b){e.respondWith(new Response('Not found: '+p,{status:404,headers:{'Content-Type':'text/plain'}}));return;}
+  e.respondWith(new Response(b,{headers:{'Content-Type':b.type||'application/octet-stream'}}));
+});`;
+let VFSMODE='rewrite', SWREG=null;
+async function initVFS(){
+  const badge=$('#fsBadge');
+  const paint=()=>badge.innerHTML=`Virtual FS <b>${VFSMODE==='sw'?'service worker':'inline rewrite'}</b>`;
+  paint();
+  if(!('serviceWorker' in navigator)||!/^https?:$/.test(location.protocol)) return paint();
+  try{
+    const url=URL.createObjectURL(new Blob([SW_SRC],{type:'text/javascript'}));
+    SWREG=await navigator.serviceWorker.register(url,{scope:'./'});
+    await navigator.serviceWorker.ready;
+    VFSMODE='sw';
+  }catch(e){ VFSMODE='rewrite'; }
+  paint();
+}
+async function swMount(token,rootId){
+  const files={};
+  for(const f of collectFiles(rootId)) files[f.path]=await readBlob(f.node.id);
+  const sw=navigator.serviceWorker.controller||(SWREG&&SWREG.active);
+  if(!sw) throw new Error('no controller');
+  await new Promise((res,rej)=>{
+    const ch=new MessageChannel();
+    ch.port1.onmessage=()=>res();
+    setTimeout(()=>rej(new Error('mount timeout')),3000);
+    sw.postMessage({t:'mount',token,files},[ch.port2]);
+  });
+}
+function swUnmount(token){
+  const sw=navigator.serviceWorker&&(navigator.serviceWorker.controller||(SWREG&&SWREG.active));
+  if(sw) sw.postMessage({t:'unmount',token});
+}
+
+/* ═══ the runner overlay ════════════════════════════════════ */
+let runState=null;
+async function runApp(id){
+  const n=TREE[id];
+  const entry=children(id).find(c=>c.type==='file'&&/^index\.html?$/i.test(c.name));
+  if(!entry) return toast(`No index.html in ${n.name}`,'err',4000);
+  for(const t of tabs) if(t.flush) await t.flush();
+  await launch(id,entry.id,n.name);
+}
+async function launch(rootId,entryId,title){
+  closeRunner();
+  const frame=$('#runFrame');
+  $('#runName').textContent=title;
+  $('#runner').classList.add('on'); $('#runPill').style.display='flex';
+  CURRENT_HOST=bindHostAPI(rootId);
+  runState={rootId,entryId,title,token:null,resolver:null};
+
+  if(VFSMODE==='sw'){
+    try{
+      const token=uid();
+      // inject the bridge into a copy of index.html before mounting
+      const files={};
+      for(const f of collectFiles(rootId)) files[f.path]=await readBlob(f.node.id);
+      const entryPath=collectFiles(rootId).find(f=>f.node.id===entryId).path;
+      let html=await files[entryPath].text();
+      html=injectBridge(html,rootId);
+      files[entryPath]=new Blob([html],{type:'text/html'});
+      const sw=navigator.serviceWorker.controller||(SWREG&&SWREG.active);
+      if(!sw) throw new Error('no controller');
+      await new Promise((res,rej)=>{ const ch=new MessageChannel();
+        ch.port1.onmessage=()=>res(); setTimeout(()=>rej(new Error('timeout')),3000);
+        sw.postMessage({t:'mount',token,files},[ch.port2]); });
+      runState.token=token;
+      frame.removeAttribute('srcdoc');
+      frame.src=new URL('./__nimbus__/'+token+'/'+entryPath,location.href).href;
+      return;
+    }catch(e){ /* fall through to rewrite */ }
+  }
+  const r=makeResolver(rootId);
+  runState.resolver=r;
+  let html=await readText(entryId);
+  html=await r.rewriteHTML(html,TREE[entryId].parent);
+  html=injectBridge(html,rootId);
+  frame.removeAttribute('src');
+  frame.srcdoc=html;
+}
+function injectBridge(html,rootId){
+  const b=bridgeScript(rootId);
+  if(/<head[^>]*>/i.test(html)) return html.replace(/<head[^>]*>/i,m=>m+b);
+  if(/<html[^>]*>/i.test(html)) return html.replace(/<html[^>]*>/i,m=>m+b);
+  return b+html;
+}
+function closeRunner(){
+  const frame=$('#runFrame');
+  frame.removeAttribute('src'); frame.removeAttribute('srcdoc');
+  $('#runner').classList.remove('on'); $('#runPill').style.display='none';
+  if(runState){ if(runState.token) swUnmount(runState.token); if(runState.resolver) setTimeout(()=>runState.resolver.revoke(),500); }
+  runState=null; CURRENT_HOST=null;
+}
+$('#runClose').onclick=closeRunner;
+$('#runReload').onclick=()=>{ if(runState) launch(runState.rootId,runState.entryId,runState.title); };
+(()=>{ let t=null; const pill=$('#runPill');
+  const dim=()=>pill.classList.add('dim');
+  const wake=()=>{ pill.classList.remove('dim'); clearTimeout(t); t=setTimeout(dim,2800); };
+  ['mousemove','keydown','touchstart'].forEach(ev=>addEventListener(ev,wake));
+  pill.addEventListener('mouseenter',()=>{clearTimeout(t);pill.classList.remove('dim');});
+})();
+
+/* ═══ HTML preview tab ══════════════════════════════════════ */
+async function previewHtml(id){
+  const n=TREE[id], key=keyOf('preview',id);
+  const t0=tabs.find(t=>t.id===id&&t.mode==='edit'); if(t0&&t0.flush) await t0.flush();
+  let pane=panesEl.querySelector(`.pane[data-key="${CSS.escape(key)}"]`);
+  if(!pane){
+    pane=makePane(key);
+    pane.innerHTML=`<div class="paneHead"><span>Preview — ${escAttr(n.name)}</span><div class="spacer"></div>
+      <button data-a="refresh">Refresh</button><button data-a="full">Open fullscreen</button></div>
+      <iframe class="frame" data-r="f" sandbox="allow-scripts allow-same-origin allow-forms allow-modals allow-popups allow-downloads"></iframe>`;
+    pane.addEventListener('click',e=>{
+      const a=e.target.closest('[data-a]'); if(!a) return;
+      if(a.dataset.a==='refresh') fill();
+      if(a.dataset.a==='full') launch(TREE[id].parent,id,n.name);
+    });
+    tabs.push({key,id,mode:'preview',pane,cleanup:()=>pane._r&&pane._r.revoke()});
+  }
+  async function fill(){
+    if(pane._r) pane._r.revoke();
+    const r=makeResolver(TREE[id].parent); pane._r=r;
+    let html=await readText(id);
+    html=await r.rewriteHTML(html,TREE[id].parent);
+    pane.querySelector('[data-r="f"]').srcdoc=injectBridge(html,TREE[id].parent);
+  }
+  await fill();
+  setActive(key);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   14. modal  15. app dialog  16. settings  17. modes  18. boot
+   ═══════════════════════════════════════════════════════════════ */
+
+const scrim=$('#scrim'), modalEl=$('#modal');
+function showModal({title,sub,body,actions=[],wide,after}){
+  modalEl.className='modal'+(wide?' wide':'');
+  modalEl.innerHTML=`<div class="mhead"><h2>${escAttr(title)}</h2>${sub?`<p>${escAttr(sub)}</p>`:''}</div>
+    <div class="mbody">${body||''}</div>
+    <div class="mfoot">${actions.map((a,i)=>`<button class="btn ${a.cls||''}" data-i="${i}">${escAttr(a.text)}</button>`).join('')}</div>`;
+  hydrateIcons(modalEl);
+  modalEl.querySelectorAll('.mfoot .btn').forEach(b=>{
+    b.onclick=()=>{ const a=actions[+b.dataset.i]; if(a.keepOpen){a.fn&&a.fn();return;} hideModal(); a.fn&&a.fn(); };
+  });
+  scrim.classList.add('on');
+  if(after) after();
+  const first=modalEl.querySelector('input,select,button.pri'); if(first) setTimeout(()=>first.focus(),30);
+}
+function hideModal(){ scrim.classList.remove('on'); modalEl.innerHTML=''; }
+scrim.addEventListener('mousedown',e=>{ if(e.target===scrim) hideModal(); });
+
+/* ── convert folder to app ─────────────────────────────────── */
+function appDialog(id){
+  const n=TREE[id];
+  const cur=n.icon||'grid';
+  const hasIndex=children(id).some(c=>/^index\.html?$/i.test(c.name));
+  showModal({
+    title:n.isApp?`Icon for ${n.name}`:`Turn ${n.name} into an app`,
+    sub:hasIndex?'Runs the index.html at the root of this folder.':'Heads up — there is no index.html in this folder yet.',
+    wide:true,
+    body:`<div class="icongrid">${Object.keys(APPICONS).map(k=>
+      `<button class="icopt${k===cur?' sel':''}" data-ic="${k}" title="${k}">${appIco(k)}</button>`).join('')}</div>`,
+    after:()=>{
+      modalEl.querySelectorAll('.icopt').forEach(b=>b.onclick=()=>{
+        modalEl.querySelectorAll('.icopt').forEach(x=>x.classList.remove('sel'));
+        b.classList.add('sel');
+      });
+    },
+    actions:[{text:'Cancel'},{text:n.isApp?'Update':'Create app',cls:'pri',fn:()=>{
+      const sel=modalEl.querySelector('.icopt.sel');
+      n.icon=sel?sel.dataset.ic:'grid'; n.isApp=true;
+      persistTree(); renderTree(); refreshApps();
+      toast(`${n.name} is now an app`);
+    }}]
+  });
+}
+
+/* ── settings ──────────────────────────────────────────────── */
+function toggleRow(label,desc,key){
+  return `<div class="srow"><div class="txt"><b>${label}</b><span>${desc}</span></div>
+    <div class="sw${SET[key]?' on':''}" data-set="${key}"></div></div>`;
+}
+function openSettings(){
+  showModal({
+    title:'Settings',sub:'Everything is stored locally in IndexedDB',wide:true,
+    body:`
+      <div class="sectlbl">Layout</div>
+      <div class="srow"><div class="txt"><b>Start-up view</b><span>Which layout Nimbus opens in. Also switchable from the top bar.</span></div>
+        <div class="seg" data-r="modepick">
+          <button data-mode="edit">Edit</button><button data-mode="grid">Grid</button><button data-mode="bar">Taskbar</button>
+        </div></div>
+
+      <div class="sectlbl">Editor</div>
+      <div class="srow"><div class="txt"><b>Indent size</b><span>Spaces per indent level, or the rendered width of a tab.</span></div>
+        <div class="stepper"><button data-step="-1">−</button><span data-r="tab">${SET.tabSize}</span><button data-step="1">+</button></div></div>
+      ${toggleRow('Indent with tabs','Off inserts spaces, on inserts real tab characters.','useTabs')}
+      ${toggleRow('Spelling detection','Red squiggles under misspelled words in the editor.','spellcheck')}
+      ${toggleRow('Syntax highlighting','Colouring for HTML, CSS and JavaScript.','highlight')}
+      ${toggleRow('Word wrap','Wrap long lines instead of scrolling sideways.','wrap')}
+      ${toggleRow('Line numbers','Show the number column down the left.','lineNumbers')}
+      ${toggleRow('Auto-close brackets','Type ( and get () with the caret in between.','autoClose')}
+      ${toggleRow('Auto-indent','Keep the previous line’s indentation on Enter.','autoIndent')}
+      <div class="srow"><div class="txt"><b>Font size</b><span>Editor text size in pixels.</span></div>
+        <div class="stepper"><button data-fs="-1">−</button><span data-r="fs">${SET.fontSize}</span><button data-fs="1">+</button></div></div>
+
+      <div class="sectlbl">Files</div>
+      ${toggleRow('Folders before files','Sort folders above files in the tree.','sortFolders')}
+      <div class="srow"><div class="txt"><b>Workspace</b><span data-r="usage">Measuring…</span></div>
+        <button class="btn" data-a="exportall">Export ZIP</button></div>
+      <div class="srow"><div class="txt"><b>Encrypted storage test</b><span>Round-trips a value through AES-256-GCM to check WebCrypto works here.</span></div>
+        <button class="btn" data-a="cryptotest">Run test</button></div>
+      <div class="srow"><div class="txt"><b>Reset everything</b><span>Deletes every file, folder and app from this browser.</span></div>
+        <button class="btn danger" data-a="wipe">Erase</button></div>`,
+    after:()=>{
+      const pick=modalEl.querySelector('[data-r="modepick"]');
+      pick.querySelectorAll('button').forEach(b=>{
+        b.classList.toggle('on',b.dataset.mode===SET.mode);
+        b.onclick=()=>{ setMode(b.dataset.mode); pick.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b)); };
+      });
+      modalEl.querySelectorAll('[data-set]').forEach(sw=>sw.onclick=()=>{
+        const k=sw.dataset.set; SET[k]=!SET[k]; sw.classList.toggle('on',SET[k]);
+        persistSettings(); allPanes(p=>p.applySettings&&p.applySettings());
+        if(k==='sortFolders'){ Object.keys(TREE).forEach(sortChildren); persistTree(); renderTree(); }
+      });
+      modalEl.querySelectorAll('[data-step]').forEach(b=>b.onclick=()=>{
+        SET.tabSize=clamp(SET.tabSize+ +b.dataset.step,1,8);
+        modalEl.querySelector('[data-r="tab"]').textContent=SET.tabSize;
+        persistSettings(); allPanes(p=>p.applySettings&&p.applySettings());
+      });
+      modalEl.querySelectorAll('[data-fs]').forEach(b=>b.onclick=()=>{
+        SET.fontSize=clamp(SET.fontSize+ +b.dataset.fs,9,26);
+        modalEl.querySelector('[data-r="fs"]').textContent=SET.fontSize;
+        persistSettings(); allPanes(p=>p.applySettings&&p.applySettings());
+      });
+      modalEl.querySelector('[data-a="exportall"]').onclick=()=>{ hideModal(); downloadZip('root'); };
+      modalEl.querySelector('[data-a="cryptotest"]').onclick=async()=>{
+        const probe={hello:'world',when:Date.now(),blob:'✓'};
+        await saveToCache('__crypto_probe','x',undefined);
+        const okSave=await saveToCache('__crypto_probe',probe,'correct horse battery staple');
+        const good=await loadFromCache('__crypto_probe','correct horse battery staple');
+        const bad=await loadFromCache('__crypto_probe','wrong passphrase');
+        const none=await loadFromCache('__crypto_probe');
+        await removeFromCache('__crypto_probe');
+        const pass=okSave&&good&&good.hello==='world'&&bad===null&&none===null;
+        toast(pass?'AES-256-GCM round trip passed — wrong keys returned null':'Encryption test failed',pass?'ok':'err',4200);
+      };
+      modalEl.querySelector('[data-a="wipe"]').onclick=()=>{
+        hideModal();
+        showModal({title:'Erase the whole workspace?',sub:'Every file, folder and app in this browser will be deleted. Export a ZIP first if you want a copy.',
+          actions:[{text:'Cancel'},{text:'Erase everything',cls:'danger',fn:async()=>{
+            for(const k of await listCacheKeys('vfs.file.')) await removeFromCache(k);
+            TREE={root:{id:'root',name:'Workspace',type:'folder',parent:null,children:[],open:true}};
+            tabs.slice().forEach(t=>closeTabKey(t.key));
+            await persistTree(true); renderTree(); toast('Workspace erased','info');
+          }}]});
+      };
+      (async()=>{
+        const files=collectFiles('root'); let total=0;
+        for(const f of files) total+=f.node.size||0;
+        let quota='';
+        try{ const est=await navigator.storage.estimate(); quota=` · ${bytes(est.usage||0)} of ${bytes(est.quota||0)} browser quota used`; }catch(e){}
+        const el=modalEl.querySelector('[data-r="usage"]');
+        if(el) el.textContent=`${files.length} files · ${bytes(total)}${quota}`;
+      })();
+    },
+    actions:[{text:'Done',cls:'pri'}]
+  });
+}
+$('#btnSettings').onclick=openSettings;
+
+/* ── modes ─────────────────────────────────────────────────── */
+function setMode(m){
+  SET.mode=m; persistSettings();
+  $$('#modeSeg button').forEach(b=>b.classList.toggle('on',b.dataset.mode===m));
+  $('#editView').classList.toggle('on',m==='edit');
+  $('#gridView').classList.toggle('on',m==='grid');
+  $('#barView').classList.toggle('on',m==='bar');
+  refreshApps();
+}
+$$('#modeSeg button').forEach(b=>b.onclick=()=>setMode(b.dataset.mode));
+
+function refreshApps(){
+  const apps=listApps();
+  const grid=$('#appGrid'), dock=$('#appDock');
+  if(grid){
+    grid.innerHTML=apps.length?apps.map(a=>
+      `<button class="appcell" data-app="${a.id}"><span class="box">${appIco(a.icon)}</span><span class="lb">${escAttr(a.name)}</span></button>`).join('')
+      :`<div class="noapps">No apps yet.<br>Switch to <b>Edit</b>, right click a folder that contains an <b>index.html</b>, and choose <b>Convert to app</b>.</div>`;
+  }
+  if(dock){
+    dock.style.display=apps.length?'':'none';
+    dock.innerHTML=apps.map(a=>
+      `<button class="dockcell" data-app="${a.id}">${appIco(a.icon)}<span class="tip">${escAttr(a.name)}</span></button>`).join('');
+  }
+}
+document.addEventListener('click',e=>{
+  const b=e.target.closest('[data-app]'); if(!b) return;
+  runApp(b.dataset.app);
+});
+document.addEventListener('contextmenu',e=>{
+  const b=e.target.closest('[data-app]'); if(!b) return;
+  e.preventDefault();
+  const id=b.dataset.app, n=TREE[id];
+  menu(e.clientX,e.clientY,[
+    {label:n.name},
+    {text:'Run',icon:'play',fn:()=>runApp(id)},
+    {text:'Open folder in editor',icon:'folder',fn:()=>{setMode('edit');selected=id;n.open=true;persistTree();renderTree();}},
+    {text:'Change icon…',icon:'cube',fn:()=>appDialog(id)},
+    {text:'Download as ZIP',icon:'zip',fn:()=>downloadZip(id)},
+    '-',
+    {text:'Remove from apps',icon:'x',danger:true,fn:()=>{delete n.isApp;delete n.icon;persistTree();renderTree();refreshApps();}},
+  ]);
+});
+
+/* clocks */
+function tickClock(){
+  const d=new Date();
+  const t=d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+  const s=d.toLocaleDateString([], {weekday:'long',day:'numeric',month:'long'});
+  ['#clock1','#clock2'].forEach(k=>{const e=$(k);if(e)e.textContent=t;});
+  ['#cdate1','#cdate2'].forEach(k=>{const e=$(k);if(e)e.textContent=s;});
+}
+setInterval(tickClock,10000);
+
+/* ── global shortcuts ──────────────────────────────────────── */
+addEventListener('keydown',e=>{
+  const mod=e.ctrlKey||e.metaKey;
+  const inField=/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName);
+  if(e.key==='Escape'){
+    if(scrim.classList.contains('on')) return hideModal();
+    if(ctx.classList.contains('on')) return closeMenu();
+    if($('#runner').classList.contains('on')) return closeRunner();
+  }
+  if(mod&&e.key===','){ e.preventDefault(); return openSettings(); }
+  if(mod&&e.key.toLowerCase()==='b'){ e.preventDefault(); const sb=$('#sidebar'); sb.style.display=sb.style.display==='none'?'':'none'; return; }
+  if(mod&&e.key.toLowerCase()==='w'&&active){ e.preventDefault(); return closeTabKey(active); }
+  if(mod&&e.key==='`'){ e.preventDefault(); const order=['edit','grid','bar']; return setMode(order[(order.indexOf(SET.mode)+1)%3]); }
+  if(inField) return;
+  if(e.key==='F2'&&selected) { e.preventDefault(); return startRename(selected); }
+  if(e.key==='Delete'&&selected) { e.preventDefault(); return confirmDelete(selected); }
+  if(mod&&e.key.toLowerCase()==='c'&&selected){ clipboard={id:selected,cut:false}; renderTree(); return; }
+  if(mod&&e.key.toLowerCase()==='x'&&selected){ clipboard={id:selected,cut:true}; renderTree(); return; }
+  if(mod&&e.key.toLowerCase()==='v'){ doPaste(targetFolder()); return; }
+});
+/* drop files anywhere in edit view */
+['dragover','drop'].forEach(ev=>document.addEventListener(ev,e=>{
+  if(!e.target||!e.target.closest||e.target.closest('#tree')) return;
+  e.preventDefault();
+  if(ev==='drop'&&e.dataTransfer.files.length&&SET.mode==='edit') importFiles(e.dataTransfer.files,'root');
+}));
+
+/* ── first-run demo ────────────────────────────────────────── */
+async function seed(){
+  const app=mkNode('root','Clock','folder',{isApp:true,icon:'clock'});
+  const css=mkNode(app.id,'style.css','file');
+  await writeText(css.id,`:root{color-scheme:dark}
+body{
+  margin:0;height:100vh;display:grid;place-items:center;
+  background:radial-gradient(700px 400px at 60% 0%,#2a3157,#0f1119);
+  font-family:system-ui,sans-serif;color:#dfe4fa;
+}
+.t{font-size:16vw;font-weight:200;letter-spacing:-.04em;font-variant-numeric:tabular-nums}
+.d{letter-spacing:.35em;text-transform:uppercase;font-size:2.6vw;color:#8d93ff;margin-top:1vh}
+button{
+  margin-top:5vh;padding:10px 18px;border-radius:99px;border:1px solid #ffffff2a;
+  background:#ffffff10;color:inherit;font-size:14px;cursor:pointer;
+}
+button:hover{background:#ffffff1c}`);
+  const js=mkNode(app.id,'app.js','file');
+  await writeText(js.id,`// Runs inside the app iframe.
+// Host.* talks back to Nimbus; HOST_GLOBALS holds injected values.
+const t = document.querySelector('.t');
+const d = document.querySelector('.d');
+
+function tick(){
+  const now = new Date();
+  t.textContent = now.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+  d.textContent = now.toLocaleDateString([], {weekday:'long', day:'numeric', month:'long'});
+}
+tick();
+setInterval(tick, 1000);
+
+document.querySelector('button').addEventListener('click', async () => {
+  const files = await Host.listDir('/');
+  await Host.notify('This app folder holds ' + files.length + ' files');
+  console.log(files);
+});`);
+  const html=mkNode(app.id,'index.html','file');
+  await writeText(html.id,`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Clock</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <div>
+    <div class="t"></div>
+    <div class="d"></div>
+    <button>Ask the host what's in here</button>
+  </div>
+  <script src="/app.js"><\/script>
+</body>
+</html>`);
+  const notes=mkNode('root','notes.md','file');
+  await writeText(notes.id,`# Nimbus
+
+A workspace that lives entirely in this browser tab.
+
+## Try this
+1. Right click **Clock** → **Run** to launch the demo app.
+2. Right click any folder → **Convert to app** to give it an icon.
+3. Right click a **.js** file → **Run** to execute it against the host page.
+4. Switch to **Grid** or **Taskbar** in the top bar to see your apps laid out.
+
+## Storage
+Everything auto-saves to IndexedDB. Two globals do the work:
+
+    await saveToCache('my-key', {any: 'value'})
+    await loadFromCache('my-key')
+
+Add a third argument to encrypt with AES-256-GCM:
+
+    await saveToCache('secrets', data, 'my passphrase')
+    await loadFromCache('secrets', 'my passphrase')  // null if the key is wrong
+`);
+  app.open=false;
+  await persistTree(true);
+}
+
+/* ── boot ──────────────────────────────────────────────────── */
+(async function boot(){
+  hydrateIcons(document);
+  tickClock();
+  const s=await loadFromCache('settings.v1'); if(s) Object.assign(SET,s);
+  const t=await loadFromCache(VFS_KEY);
+  if(t&&t.root) TREE=t; else await seed();
+  if(!TREE.root) TREE={root:{id:'root',name:'Workspace',type:'folder',parent:null,children:[],open:true}};
+  $('#sidebar').style.flexBasis=SET.sidebarW+'px'; $('#sidebar').style.width=SET.sidebarW+'px';
+  setMode(SET.mode||'edit');
+  renderTree();
+  initVFS();
+  /* a couple of host globals to demonstrate the bridge */
+  Nimbus.setGlobal('NIMBUS_VERSION','1.0');
+  Nimbus.setGlobal('HOST_THEME',{accent:'#8d93ff',bg:'#101219'});
+  Nimbus.expose('ping',async()=>'pong from the host at '+new Date().toISOString());
+  addEventListener('beforeunload',()=>{ tabs.forEach(t=>{ if(t.dirty&&t.ta) writeText(t.id,t.ta.value); }); });
+})();
+
+</script>
+</body>
+</html>
